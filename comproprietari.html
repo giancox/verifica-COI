@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legami Catastali</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Stili personalizzati aggiuntivi */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Grigio chiaro per lo sfondo */
+        }
+        /* Stile per i modali */
+        .modal {
+            display: none; /* Nascosto di default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6); /* Sfondo semi-trasparente */
+            padding-top: 60px; /* Spazio dall'alto */
+        }
+        .modal-content {
+            background-color: #ffffff;
+            margin: 5% auto; /* Centrato verticalmente e orizzontalmente */
+            padding: 25px;
+            border: 1px solid #e5e7eb; /* Bordo grigio chiaro */
+            border-radius: 0.5rem; /* Angoli arrotondati */
+            width: 90%; /* Larghezza responsiveness */
+            max-width: 800px; /* Larghezza massima */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-height: 80vh; /* Altezza massima */
+            overflow-y: auto; /* Scroll verticale se necessario */
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #9ca3af; /* Grigio */
+            cursor: pointer;
+            line-height: 1;
+        }
+        .modal-close-btn:hover,
+        .modal-close-btn:focus {
+            color: #1f2937; /* Grigio scuro */
+        }
+        /* Stile per tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 220px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%; /* Posiziona sopra l'elemento */
+            left: 50%;
+            margin-left: -110px; /* Centra il tooltip */
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* Stile per pulsanti aggiungi/rimuovi riga */
+        .add-row-btn, .remove-row-btn {
+            transition: background-color 0.2s ease-in-out;
+        }
+        /* Input e select styling */
+        input[type="text"], input[type="number"], input[type="search"], select {
+            @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm;
+        }
+        label {
+             @apply block text-sm font-medium text-gray-700 mb-1;
+        }
+         /* Nasconde le frecce per input number */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield; /* Firefox */
+        }
+    </style>
+</head>
+<body class="p-8">
+
+    <h1 class="text-2xl font-bold mb-6 text-gray-800">Gestione Legami</h1>
+
+    <button id="task-legami-catastali" class="px-6 py-3 text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-300 bg-red-600 hover:bg-red-700 focus:ring-red-500">
+        2 LEGAMI CATASTALI
+    </button>
+
+    <div id="modal-comproprietari-diretti" class="modal">
+        <div class="modal-content relative">
+            <span class="modal-close-btn" onclick="closeModal('modal-comproprietari-diretti')">&times;</span>
+            <h2 class="text-xl font-semibold mb-4 text-gray-900">Elenco Comproprietari Diretti</h2>
+            <p class="text-sm text-gray-600 mb-4">Inserisci i soggetti che condividono titoli di proprietà (fabbricati/terreni) direttamente con il dichiarante.</p>
+
+            <div class="flex items-center mb-5">
+                <input id="nessun-comproprietario-diretto" name="nessun-comproprietario-diretto" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="nessun-comproprietario-diretto" class="ml-2 block text-sm text-gray-900">
+                    NESSUN SOGGETTO COMPROPRIETARIO DIRETTO
+                </label>
+            </div>
+
+            <div id="container-comproprietari-diretti" class="space-y-4 mb-4">
+                </div>
+
+            <button id="btn-add-comproprietario-diretto" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 add-row-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                Aggiungi Comproprietario Diretto
+            </button>
+        </div>
+    </div>
+
+    <div id="modal-partecipazioni-diretto" class="modal">
+        <div class="modal-content relative">
+            <span class="modal-close-btn" onclick="closeModal('modal-partecipazioni-diretto')">&times;</span>
+            <h2 class="text-xl font-semibold mb-4 text-gray-900">Partecipazioni/Ruoli in Imprese</h2>
+            <p id="subtitle-partecipazioni-diretto" class="text-sm text-gray-600 mb-4">Per: <span class="font-medium"></span></p>
+            <input type="hidden" id="partecipazioni-diretto-owner-id"> <div class="flex items-center mb-5">
+                <input id="nessuna-partecipazione-diretta" name="nessuna-partecipazione-diretta" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="nessuna-partecipazione-diretta" class="ml-2 block text-sm text-gray-900">
+                    NESSUNA PARTECIPAZIONE DIRETTA O RUOLI IN IMPRESE
+                </label>
+            </div>
+
+            <div id="container-partecipazioni-diretto" class="space-y-4 mb-4">
+                </div>
+
+            <button id="btn-add-partecipazione-diretto" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 add-row-btn">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                Aggiungi Impresa/Partecipazione
+            </button>
+        </div>
+    </div>
+
+     <div id="modal-imprese-controllate-diretto" class="modal">
+        <div class="modal-content relative">
+            <span class="modal-close-btn" onclick="closeModal('modal-imprese-controllate-diretto')">&times;</span>
+            <h2 class="text-xl font-semibold mb-4 text-gray-900">Imprese Controllate (>= 25%)</h2>
+            <p id="subtitle-imprese-controllate-diretto" class="text-sm text-gray-600 mb-4">Da: <span class="font-medium"></span></p>
+             <input type="hidden" id="imprese-controllate-diretto-owner-id"> <div class="flex items-center mb-5">
+                <input id="nessuna-impresa-controllata-diretta" name="nessuna-impresa-controllata-diretta" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="nessuna-impresa-controllata-diretta" class="ml-2 block text-sm text-gray-900">
+                    NESSUNA IMPRESA CONTROLLATA INDIRETTAMENTE (>=25%)
+                </label>
+            </div>
+
+            <div id="container-imprese-controllate-diretto" class="space-y-4 mb-4">
+                </div>
+
+            <button id="btn-add-impresa-controllata-diretto" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 add-row-btn">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                Aggiungi Impresa Controllata
+            </button>
+        </div>
+    </div>
+
+    <div id="modal-comproprietari-indiretti" class="modal">
+        <div class="modal-content relative">
+            <span class="modal-close-btn" onclick="closeModal('modal-comproprietari-indiretti')">&times;</span>
+            <h2 class="text-xl font-semibold mb-4 text-gray-900">Elenco Comproprietari Indiretti</h2>
+            <p id="subtitle-comproprietari-indiretti" class="text-sm text-gray-600 mb-4">Collegati tramite: <span class="font-medium"></span> (su beni non condivisi con il dichiarante)</p>
+            <input type="hidden" id="comproprietari-indiretti-owner-id"> <div class="flex items-center mb-5">
+                <input id="nessun-comproprietario-indiretto" name="nessun-comproprietario-indiretto" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="nessun-comproprietario-indiretto" class="ml-2 block text-sm text-gray-900">
+                    NESSUN COMPROPRIETARIO INDIRETTO
+                </label>
+            </div>
+
+            <div id="container-comproprietari-indiretti" class="space-y-4 mb-4">
+                </div>
+
+            <button id="btn-add-comproprietario-indiretto" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 add-row-btn">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                Aggiungi Comproprietario Indiretto
+            </button>
+        </div>
+    </div>
+
+     <div id="modal-partecipazioni-indiretto" class="modal">
+        <div class="modal-content relative">
+            <span class="modal-close-btn" onclick="closeModal('modal-partecipazioni-indiretto')">&times;</span>
+            <h2 class="text-xl font-semibold mb-4 text-gray-900">Partecipazioni/Ruoli in Imprese (Compr. Indiretto)</h2>
+            <p id="subtitle-partecipazioni-indiretto" class="text-sm text-gray-600 mb-4">Per: <span class="font-medium"></span></p>
+            <input type="hidden" id="partecipazioni-indiretto-owner-id"> <div class="flex items-center mb-5">
+                <input id="nessuna-partecipazione-indiretta-check" name="nessuna-partecipazione-indiretta-check" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="nessuna-partecipazione-indiretta-check" class="ml-2 block text-sm text-gray-900">
+                    NESSUNA PARTECIPAZIONE DIRETTA O RUOLI IN IMPRESE
+                </label>
+            </div>
+
+            <div id="container-partecipazioni-indiretto" class="space-y-4 mb-4">
+                </div>
+
+            <button id="btn-add-partecipazione-indiretto" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 add-row-btn">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                Aggiungi Impresa/Partecipazione
+            </button>
+        </div>
+    </div>
+
+    <div id="modal-imprese-controllate-indiretto" class="modal">
+        <div class="modal-content relative">
+            <span class="modal-close-btn" onclick="closeModal('modal-imprese-controllate-indiretto')">&times;</span>
+            <h2 class="text-xl font-semibold mb-4 text-gray-900">Imprese Controllate (>= 25%) (Compr. Indiretto)</h2>
+            <p id="subtitle-imprese-controllate-indiretto" class="text-sm text-gray-600 mb-4">Da: <span class="font-medium"></span></p>
+             <input type="hidden" id="imprese-controllate-indiretto-owner-id"> <div class="flex items-center mb-5">
+                <input id="nessuna-impresa-controllata-indiretta-check" name="nessuna-impresa-controllata-indiretta-check" type="checkbox" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                <label for="nessuna-impresa-controllata-indiretta-check" class="ml-2 block text-sm text-gray-900">
+                    NESSUNA IMPRESA CONTROLLATA INDIRETTAMENTE (>=25%)
+                </label>
+            </div>
+
+            <div id="container-imprese-controllate-indiretto" class="space-y-4 mb-4">
+                </div>
+
+            <button id="btn-add-impresa-controllata-indiretto" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 add-row-btn">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                Aggiungi Impresa Controllata
+            </button>
+        </div>
+    </div>
+
+
+    <template id="template-comproprietario-diretto">
+        <div class="border border-gray-300 p-4 rounded-lg shadow-sm bg-gray-50 comproprietario-diretto-row relative" data-id="">
+             <button class="absolute top-2 right-2 text-red-500 hover:text-red-700 remove-row-btn" title="Rimuovi Comproprietario">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zm0 1h2l.724 1.447a1 1 0 00.894.553H14v10a1 1 0 01-1 1H7a1 1 0 01-1-1V6h2.382a1 1 0 00.894-.553L9 3z" clip-rule="evenodd" />
+                    <path fill-rule="evenodd" d="M11 6a1 1 0 011 1v7a1 1 0 11-2 0V7a1 1 0 011-1zm-4 0a1 1 0 011 1v7a1 1 0 11-2 0V7a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+            </button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nome
+                        <span class="tooltip inline-block ml-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="tooltiptext">SOGGETTO CON CUI IL DICHIARANTE CONDIVIDE TITOLO DI PROPRIETA' IN FABBRICATI E/O TERRENI.</span>
+                        </span>
+                    </label>
+                    <input type="text" placeholder="Nome" class="nome w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cognome</label>
+                    <input type="text" placeholder="Cognome" class="cognome w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <div>
+                     <label class="block text-sm font-medium text-gray-700 mb-1">Codice Fiscale</label>
+                    <input type="text" placeholder="Codice Fiscale" class="cf w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+            </div>
+            <p class="text-sm font-medium text-gray-700 mb-2">Estremi Catastali Condivisi con Dichiarante:</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Comune (Belfiore)</label>
+                    <input type="text" placeholder="Es. H501" class="catasto-comune w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Foglio</label>
+                    <input type="text" placeholder="Foglio" class="catasto-foglio w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mappale/Particella</label>
+                    <input type="text" placeholder="Mappale" class="catasto-mappale w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subalterno (opz.)</label>
+                    <input type="text" placeholder="Subalterno" class="catasto-subalterno w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button class="btn-partecipazioni-diretto inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Partecipazioni o Ruoli
+                </button>
+                 <button class="btn-comproprietari-indiretti inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Comproprietari Indiretti
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <template id="template-partecipazione-impresa">
+        <div class="border border-gray-200 p-3 rounded-md bg-white partecipazione-impresa-row relative" data-id="">
+            <button class="absolute top-1 right-1 text-red-400 hover:text-red-600 remove-row-btn" title="Rimuovi Impresa">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zm0 1h2l.724 1.447a1 1 0 00.894.553H14v10a1 1 0 01-1 1H7a1 1 0 01-1-1V6h2.382a1 1 0 00.894-.553L9 3z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M11 6a1 1 0 011 1v7a1 1 0 11-2 0V7a1 1 0 011-1zm-4 0a1 1 0 011 1v7a1 1 0 11-2 0V7a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+            </button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Nome Impresa</label>
+                    <input type="text" placeholder="Nome Impresa" class="nome-impresa w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                </div>
+                 <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">C.F. / P.IVA</label>
+                    <input type="text" placeholder="C.F. / P.IVA" class="cf-piva w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                </div>
+                 <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Ruolo</label>
+                    <input type="text" placeholder="Es. Socio, Amministratore" class="ruolo w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                </div>
+                 <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Codice/i ATECO</label>
+                    <input type="text" placeholder="Es. 62.01.00" class="ateco w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                </div>
+            </div>
+             <button class="btn-legami-indiretti-impresa inline-flex items-center px-2.5 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Legami Indiretti (Imprese Controllate >=25%)
+            </button>
+        </div>
+    </template>
+
+    <template id="template-impresa-controllata">
+         <div class="border border-gray-200 p-3 rounded-md bg-white impresa-controllata-row relative" data-id="">
+             <button class="absolute top-1 right-1 text-red-400 hover:text-red-600 remove-row-btn" title="Rimuovi Impresa Controllata">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zm0 1h2l.724 1.447a1 1 0 00.894.553H14v10a1 1 0 01-1 1H7a1 1 0 01-1-1V6h2.382a1 1 0 00.894-.553L9 3z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M11 6a1 1 0 011 1v7a1 1 0 11-2 0V7a1 1 0 011-1zm-4 0a1 1 0 011 1v7a1 1 0 11-2 0V7a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+            </button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Nome Impresa Controllata</label>
+                    <input type="text" placeholder="Nome Impresa Controllata" class="nome-impresa-controllata w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                </div>
+                 <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">P.IVA / C.F.</label>
+                    <input type="text" placeholder="P.IVA / C.F." class="piva-cf-controllata w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                </div>
+                 <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">% Controllo (min 25)</label>
+                    <input type="number" min="25" placeholder="%" class="percentuale-controllo w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                </div>
+                 <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Codici ATECO</label>
+                    <input type="text" placeholder="Codici ATECO" class="ateco-controllata w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="template-comproprietario-indiretto">
+        <div class="border border-gray-300 p-4 rounded-lg shadow-sm bg-gray-50 comproprietario-indiretto-row relative" data-id="">
+             <button class="absolute top-2 right-2 text-red-500 hover:text-red-700 remove-row-btn" title="Rimuovi Comproprietario Indiretto">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zm0 1h2l.724 1.447a1 1 0 00.894.553H14v10a1 1 0 01-1 1H7a1 1 0 01-1-1V6h2.382a1 1 0 00.894-.553L9 3z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M11 6a1 1 0 011 1v7a1 1 0 11-2 0V7a1 1 0 011-1zm-4 0a1 1 0 011 1v7a1 1 0 11-2 0V7a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+            </button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                    <input type="text" placeholder="Nome" class="nome w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cognome</label>
+                    <input type="text" placeholder="Cognome" class="cognome w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                 <div>
+                     <label class="block text-sm font-medium text-gray-700 mb-1">Codice Fiscale</label>
+                    <input type="text" placeholder="Codice Fiscale" class="cf w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+            </div>
+             <p class="text-sm font-medium text-gray-700 mb-2">Estremi Catastali Condivisi (con Compr. Diretto):</p>
+             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Comune (Belfiore)</label>
+                    <input type="text" placeholder="Es. H501" class="catasto-comune w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Foglio</label>
+                    <input type="text" placeholder="Foglio" class="catasto-foglio w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mappale/Particella</label>
+                    <input type="text" placeholder="Mappale" class="catasto-mappale w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subalterno (opz.)</label>
+                    <input type="text" placeholder="Subalterno" class="catasto-subalterno w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+            </div>
+             <div class="flex flex-wrap gap-3">
+                <button class="btn-partecipazioni-indiretto inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Partecipazioni o Ruoli (Compr. Indiretto)
+                </button>
+                 </div>
+        </div>
+    </template>
+
+    <script>
+        // --- VARIABILI GLOBALI E UTILITY ---
+        let nextComproprietarioDirettoId = 0;
+        let nextPartecipazioneDirettoId = 0;
+        let nextImpresaControllataDirettoId = 0;
+        let nextComproprietarioIndirettoId = 0;
+        let nextPartecipazioneIndirettoId = 0;
+        let nextImpresaControllataIndirettoId = 0;
+
+        const taskButton = document.getElementById('task-legami-catastali');
+        const modalComproprietariDiretti = document.getElementById('modal-comproprietari-diretti');
+        const containerComproprietariDiretti = document.getElementById('container-comproprietari-diretti');
+        const checkNessunComproprietarioDiretto = document.getElementById('nessun-comproprietario-diretto');
+        const btnAddComproprietarioDiretto = document.getElementById('btn-add-comproprietario-diretto');
+
+        // Funzione helper per aprire un modale
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'block';
+            }
+        }
+
+        // Funzione helper per chiudere un modale
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+             // Potrebbe essere necessario aggiornare lo stato del bottone principale se si chiude il modale principale
+             if (modalId === 'modal-comproprietari-diretti') {
+                 updateTaskButtonStatus();
+             }
+        }
+
+        // Funzione per aggiornare lo stato (colore) del bottone task principale
+        function updateTaskButtonStatus() {
+            taskButton.classList.remove('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500');
+            taskButton.classList.remove('bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500');
+            taskButton.classList.remove('bg-yellow-500', 'hover:bg-yellow-600', 'focus:ring-yellow-400');
+
+            if (checkNessunComproprietarioDiretto.checked) {
+                 taskButton.classList.add('bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500');
+                 btnAddComproprietarioDiretto.disabled = true;
+                 btnAddComproprietarioDiretto.classList.add('opacity-50', 'cursor-not-allowed');
+                 // Opzionale: rimuovere o disabilitare le righe esistenti
+                 // containerComproprietariDiretti.innerHTML = ''; // Rimuove tutte le righe
+            } else {
+                 btnAddComproprietarioDiretto.disabled = false;
+                 btnAddComproprietarioDiretto.classList.remove('opacity-50', 'cursor-not-allowed');
+                 const hasDirectRows = containerComproprietariDiretti.children.length > 0;
+                 if (hasDirectRows) {
+                     taskButton.classList.add('bg-yellow-500', 'hover:bg-yellow-600', 'focus:ring-yellow-400');
+                 } else {
+                     taskButton.classList.add('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500');
+                 }
+            }
+        }
+
+        // Funzione generica per aggiungere una riga da un template a un container
+        function addRow(templateId, containerId, setupFunction) {
+            const template = document.getElementById(templateId);
+            const container = document.getElementById(containerId);
+            if (!template || !container) return null;
+
+            const clone = template.content.firstElementChild.cloneNode(true);
+            container.appendChild(clone);
+            if (setupFunction) {
+                setupFunction(clone); // Passa la riga clonata per ulteriori setup (es. ID, event listener)
+            }
+            return clone; // Ritorna la riga aggiunta
+        }
+
+        // Funzione generica per rimuovere una riga (associata a un pulsante di rimozione)
+        function removeRow(event) {
+            const button = event.target.closest('button'); // Trova il bottone cliccato
+             if (button) {
+                const rowToRemove = button.closest('.comproprietario-diretto-row, .partecipazione-impresa-row, .impresa-controllata-row, .comproprietario-indiretto-row'); // Aggiungere classi specifiche per ogni tipo di riga
+                if (rowToRemove) {
+                    const container = rowToRemove.parentElement;
+                    rowToRemove.remove();
+                    // Aggiorna lo stato se necessario (es. bottone principale)
+                    if (container.id === 'container-comproprietari-diretti') {
+                         updateTaskButtonStatus();
+                    }
+                    // Aggiungere logica di aggiornamento per altri stati se necessario
+                }
+             }
+        }
+
+        // --- SETUP EVENT LISTENER ---
+
+        // Apertura modale principale
+        taskButton.addEventListener('click', () => {
+            openModal('modal-comproprietari-diretti');
+            // Assicurati che lo stato del bottone sia corretto all'apertura
+            updateTaskButtonStatus();
+        });
+
+        // Checkbox "Nessun Comproprietario Diretto"
+        checkNessunComproprietarioDiretto.addEventListener('change', updateTaskButtonStatus);
+
+        // Aggiunta Comproprietario Diretto
+        btnAddComproprietarioDiretto.addEventListener('click', () => {
+            addRow('template-comproprietario-diretto', 'container-comproprietari-diretti', (newRow) => {
+                // Assegna un ID univoco alla riga
+                const rowId = `comp-dir-${nextComproprietarioDirettoId++}`;
+                newRow.dataset.id = rowId;
+
+                // Aggiungi event listener ai pulsanti interni della nuova riga
+                newRow.querySelector('.btn-partecipazioni-diretto').addEventListener('click', () => openPartecipazioniDirettoModal(newRow));
+                newRow.querySelector('.btn-comproprietari-indiretti').addEventListener('click', () => openComproprietariIndirettiModal(newRow));
+                newRow.querySelector('.remove-row-btn').addEventListener('click', removeRow);
+
+                // Aggiorna stato bottone principale (diventa giallo se non era già verde)
+                updateTaskButtonStatus();
+            });
+        });
+
+        // --- FUNZIONI PER APRIRE MODALI SECONDARI ---
+
+        function openPartecipazioniDirettoModal(comproprietarioRow) {
+            const rowId = comproprietarioRow.dataset.id;
+            const nome = comproprietarioRow.querySelector('.nome').value || 'N/D';
+            const cognome = comproprietarioRow.querySelector('.cognome').value || 'N/D';
+
+            const modal = document.getElementById('modal-partecipazioni-diretto');
+            modal.querySelector('#subtitle-partecipazioni-diretto span').textContent = `${nome} ${cognome}`;
+            modal.querySelector('#partecipazioni-diretto-owner-id').value = rowId; // Salva l'ID del proprietario
+
+            // Resetta lo stato del modale (checkbox, righe esistenti specifiche per questo proprietario)
+            modal.querySelector('#nessuna-partecipazione-diretta').checked = false; // Esempio reset checkbox
+            modal.querySelector('#container-partecipazioni-diretto').innerHTML = ''; // Pulisce righe precedenti
+            // Qui dovresti caricare/mostrare le righe specifiche per 'rowId' se i dati fossero persistenti
+
+            // Abilita/Disabilita Aggiungi Impresa in base alla checkbox
+             setupModalCheckboxToggle(modal.querySelector('#nessuna-partecipazione-diretta'), modal.querySelector('#btn-add-partecipazione-diretto'));
+
+
+            openModal('modal-partecipazioni-diretto');
+        }
+
+         function openComproprietariIndirettiModal(comproprietarioRow) {
+            const rowId = comproprietarioRow.dataset.id;
+            const nome = comproprietarioRow.querySelector('.nome').value || 'N/D';
+            const cognome = comproprietarioRow.querySelector('.cognome').value || 'N/D';
+
+            const modal = document.getElementById('modal-comproprietari-indiretti');
+            modal.querySelector('#subtitle-comproprietari-indiretti span').textContent = `${nome} ${cognome}`;
+            modal.querySelector('#comproprietari-indiretti-owner-id').value = rowId;
+
+             // Resetta stato modale
+            modal.querySelector('#nessun-comproprietario-indiretto').checked = false;
+            modal.querySelector('#container-comproprietari-indiretti').innerHTML = '';
+            // Carica/mostra righe per 'rowId' se persistenti
+
+             setupModalCheckboxToggle(modal.querySelector('#nessun-comproprietario-indiretto'), modal.querySelector('#btn-add-comproprietario-indiretto'));
+
+            openModal('modal-comproprietari-indiretti');
+        }
+
+        function openImpreseControllateDirettoModal(impresaRow) {
+            const rowId = impresaRow.dataset.id; // ID della riga impresa/partecipazione
+            const nomeImpresa = impresaRow.querySelector('.nome-impresa').value || 'Impresa N/D';
+
+            const modal = document.getElementById('modal-imprese-controllate-diretto');
+            modal.querySelector('#subtitle-imprese-controllate-diretto span').textContent = nomeImpresa;
+            modal.querySelector('#imprese-controllate-diretto-owner-id').value = rowId;
+
+            // Resetta stato modale
+            modal.querySelector('#nessuna-impresa-controllata-diretta').checked = false;
+            modal.querySelector('#container-imprese-controllate-diretto').innerHTML = '';
+             // Carica/mostra righe per 'rowId' se persistenti
+
+            setupModalCheckboxToggle(modal.querySelector('#nessuna-impresa-controllata-diretta'), modal.querySelector('#btn-add-impresa-controllata-diretto'));
+
+            openModal('modal-imprese-controllate-diretto');
+        }
+
+         function openPartecipazioniIndirettoModal(comproprietarioIndirettoRow) {
+            const rowId = comproprietarioIndirettoRow.dataset.id;
+            const nome = comproprietarioIndirettoRow.querySelector('.nome').value || 'N/D';
+            const cognome = comproprietarioIndirettoRow.querySelector('.cognome').value || 'N/D';
+
+            const modal = document.getElementById('modal-partecipazioni-indiretto');
+            modal.querySelector('#subtitle-partecipazioni-indiretto span').textContent = `${nome} ${cognome}`;
+            modal.querySelector('#partecipazioni-indiretto-owner-id').value = rowId;
+
+             // Resetta stato modale
+            modal.querySelector('#nessuna-partecipazione-indiretta-check').checked = false;
+            modal.querySelector('#container-partecipazioni-indiretto').innerHTML = '';
+             // Carica/mostra righe per 'rowId' se persistenti
+
+             setupModalCheckboxToggle(modal.querySelector('#nessuna-partecipazione-indiretta-check'), modal.querySelector('#btn-add-partecipazione-indiretto'));
+
+            openModal('modal-partecipazioni-indiretto');
+        }
+
+         function openImpreseControllateIndirettoModal(impresaIndirettaRow) {
+            const rowId = impresaIndirettaRow.dataset.id; // ID della riga impresa/partecipazione (indiretta)
+            const nomeImpresa = impresaIndirettaRow.querySelector('.nome-impresa').value || 'Impresa N/D';
+
+            const modal = document.getElementById('modal-imprese-controllate-indiretto');
+            modal.querySelector('#subtitle-imprese-controllate-indiretto span').textContent = nomeImpresa;
+            modal.querySelector('#imprese-controllate-indiretto-owner-id').value = rowId;
+
+            // Resetta stato modale
+            modal.querySelector('#nessuna-impresa-controllata-indiretta-check').checked = false;
+            modal.querySelector('#container-imprese-controllate-indiretto').innerHTML = '';
+             // Carica/mostra righe per 'rowId' se persistenti
+
+            setupModalCheckboxToggle(modal.querySelector('#nessuna-impresa-controllata-indiretta-check'), modal.querySelector('#btn-add-impresa-controllata-indiretto'));
+
+            openModal('modal-imprese-controllate-indiretto');
+        }
+
+
+        // --- SETUP EVENT LISTENER PER AGGIUNTA RIGHE NEI MODALI SECONDARI ---
+
+        // Aggiunta Partecipazione/Impresa (Compr. Diretto)
+        document.getElementById('btn-add-partecipazione-diretto').addEventListener('click', () => {
+             addRow('template-partecipazione-impresa', 'container-partecipazioni-diretto', (newRow) => {
+                const rowId = `part-dir-${nextPartecipazioneDirettoId++}`;
+                newRow.dataset.id = rowId;
+                newRow.querySelector('.btn-legami-indiretti-impresa').addEventListener('click', () => openImpreseControllateDirettoModal(newRow));
+                newRow.querySelector('.remove-row-btn').addEventListener('click', removeRow);
+            });
+        });
+
+        // Aggiunta Impresa Controllata (da Impresa Compr. Diretto)
+        document.getElementById('btn-add-impresa-controllata-diretto').addEventListener('click', () => {
+             addRow('template-impresa-controllata', 'container-imprese-controllate-diretto', (newRow) => {
+                 const rowId = `imp-cont-dir-${nextImpresaControllataDirettoId++}`;
+                 newRow.dataset.id = rowId;
+                 newRow.querySelector('.remove-row-btn').addEventListener('click', removeRow);
+                 // Validazione % controllo
+                 const percInput = newRow.querySelector('.percentuale-controllo');
+                 percInput.addEventListener('input', () => {
+                     if (parseInt(percInput.value) < 25) {
+                         percInput.setCustomValidity('La percentuale deve essere almeno 25.');
+                         percInput.reportValidity();
+                     } else {
+                          percInput.setCustomValidity('');
+                     }
+                 });
+             });
+        });
+
+         // Aggiunta Comproprietario Indiretto
+        document.getElementById('btn-add-comproprietario-indiretto').addEventListener('click', () => {
+            addRow('template-comproprietario-indiretto', 'container-comproprietari-indiretti', (newRow) => {
+                const rowId = `comp-indir-${nextComproprietarioIndirettoId++}`;
+                newRow.dataset.id = rowId;
+                newRow.querySelector('.btn-partecipazioni-indiretto').addEventListener('click', () => openPartecipazioniIndirettoModal(newRow));
+                newRow.querySelector('.remove-row-btn').addEventListener('click', removeRow);
+            });
+        });
+
+        // Aggiunta Partecipazione/Impresa (Compr. Indiretto)
+        document.getElementById('btn-add-partecipazione-indiretto').addEventListener('click', () => {
+             addRow('template-partecipazione-impresa', 'container-partecipazioni-indiretto', (newRow) => {
+                const rowId = `part-indir-${nextPartecipazioneIndirettoId++}`;
+                newRow.dataset.id = rowId;
+                 // Rinominare la classe del bottone nel template o usare un selettore più specifico se necessario
+                newRow.querySelector('.btn-legami-indiretti-impresa').addEventListener('click', () => openImpreseControllateIndirettoModal(newRow));
+                newRow.querySelector('.remove-row-btn').addEventListener('click', removeRow);
+            });
+        });
+
+        // Aggiunta Impresa Controllata (da Impresa Compr. Indiretto)
+        document.getElementById('btn-add-impresa-controllata-indiretto').addEventListener('click', () => {
+             addRow('template-impresa-controllata', 'container-imprese-controllate-indiretto', (newRow) => {
+                 const rowId = `imp-cont-indir-${nextImpresaControllataIndirettoId++}`;
+                 newRow.dataset.id = rowId;
+                 newRow.querySelector('.remove-row-btn').addEventListener('click', removeRow);
+                 // Validazione % controllo
+                 const percInput = newRow.querySelector('.percentuale-controllo');
+                 percInput.addEventListener('input', () => {
+                     if (parseInt(percInput.value) < 25) {
+                         percInput.setCustomValidity('La percentuale deve essere almeno 25.');
+                         percInput.reportValidity();
+                     } else {
+                          percInput.setCustomValidity('');
+                     }
+                 });
+             });
+        });
+
+
+        // Funzione helper per gestire l'abilitazione/disabilitazione del pulsante "Aggiungi" in base alla checkbox "Nessuna..."
+        function setupModalCheckboxToggle(checkboxElement, buttonElement) {
+             const toggleButtonState = () => {
+                 if (checkboxElement.checked) {
+                     buttonElement.disabled = true;
+                     buttonElement.classList.add('opacity-50', 'cursor-not-allowed');
+                     // Opzionale: pulire il container associato
+                     // const container = document.getElementById(buttonElement.dataset.containerId); // Assumendo che il bottone abbia un data attribute che punta al container
+                     // if(container) container.innerHTML = '';
+                 } else {
+                     buttonElement.disabled = false;
+                     buttonElement.classList.remove('opacity-50', 'cursor-not-allowed');
+                 }
+             };
+             checkboxElement.removeEventListener('change', toggleButtonState); // Rimuovi listener precedenti per sicurezza
+             checkboxElement.addEventListener('change', toggleButtonState);
+             toggleButtonState(); // Imposta lo stato iniziale
+        }
+
+        // Setup iniziale per le checkbox dei modali (verrà chiamato quando si apre il modale)
+        // Esempio: chiamato dentro openPartecipazioniDirettoModal, openComproprietariIndirettiModal etc.
+
+
+        // --- Chiusura modali cliccando fuori dal contenuto ---
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target == modal) {
+                    closeModal(modal.id);
+                }
+            });
+        }
+
+        // Stato iniziale del bottone task
+        updateTaskButtonStatus();
+
+    </script>
+
+</body>
+</html>

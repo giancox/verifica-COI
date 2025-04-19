@@ -1,0 +1,2314 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifica Conflitto Interessi - Regione Liguria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Stili aggiuntivi per popup */
+        .popup {
+            display: none; position: fixed; left: 50%; top: 50%;
+            transform: translate(-50%, -50%); z-index: 1000;
+            width: 90%; /* Aumentata larghezza per più spazio */
+             max-width: 850px; /* Aumentata larghezza max */
+             max-height: 90vh; /* Aggiunta altezza massima */
+             overflow-y: auto; /* Abilita scroll verticale se necessario */
+        }
+        .popup-overlay {
+            display: none; position: fixed; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        /* Stili Pulsanti Colore */
+        .btn-rosso { background-color: #ef4444; color: white; }
+        .btn-rosso:hover { background-color: #dc2626; }
+        .btn-giallo { background-color: #facc15; color: #422006; }
+        .btn-giallo:hover { background-color: #eab308; }
+        .btn-verde { background-color: #22c55e; color: white; }
+        .btn-verde:hover { background-color: #16a34a; }
+        /* NUOVO: Stile Arancione */
+        .btn-arancione { background-color: #f97316; color: white; } /* orange-500 */
+        .btn-arancione:hover { background-color: #ea580c; } /* orange-600 */
+
+
+        /* Nasconde frecce input numerici */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        /* Stile errore input */
+        .input-error { border-color: #ef4444 !important; }
+        /* Stile campi readonly */
+        .readonly-field { background-color: #e5e7eb; color: #4b5563; cursor: not-allowed; }
+        /* Allineamento verticale checkbox */
+        td.align-middle { vertical-align: middle; }
+        /* Stili specifici per modal (se necessario) */
+        #modalAltriSoggetti, #modalImpreseControllate, #modalLegamiIndirettiSocietari { max-width: 850px; }
+
+    </style>
+</head>
+<body class="bg-gray-100 font-sans p-5">
+
+    <div class="container mx-auto max-w-5xl bg-white p-8 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4 text-center text-blue-800">REGIONE LIGURIA</h2>
+        <h1 class="text-2xl font-bold mb-6 text-center text-gray-700">Verifica Conflitto Interessi</h1>
+
+        <div class="text-center mb-6 space-x-4">
+            <button id="btnLegamiDiretti" class="btn-rosso px-6 py-3 rounded-md font-semibold shadow hover:shadow-lg transition duration-200 ease-in-out">
+                1a LEGAMI DIRETTI
+            </button>
+            <button id="btnLegamiIndiretti" class="btn-rosso px-6 py-3 rounded-md font-semibold shadow hover:shadow-lg transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                1b LEGAMI INDIRETTI
+            </button>
+            <button id="btnLegamiSocietari" class="btn-rosso px-6 py-3 rounded-md font-semibold shadow hover:shadow-lg transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                1c LEGAMI SOCIETARI
+            </button>
+        </div>
+
+        <div id="sezioneLegamiDiretti" class="hidden mt-8 border border-gray-200 p-6 rounded-lg bg-gray-50">
+            <h2 class="text-xl font-semibold mb-4 text-gray-600">Verifica Legami Diretti</h2>
+            <div class="mb-4 flex items-center">
+                <input type="checkbox" id="chkNessunLegame" class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <label for="chkNessunLegame" class="text-gray-700"> NESSUN LEGAME DIRETTO di controllo o proprietà</label>
+            </div>
+            <div id="tabellaContainer" class="mt-6 overflow-x-auto">
+                 <p id="nessunDatoMsg" class="text-gray-500 italic hidden">Nessuna impresa inserita.</p>
+                <table id="tabellaAziende" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome Impresa</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">P.I. / C.F.</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Ruolo
+                                <span class="inline-flex items-center justify-center ml-1 bg-gray-400 text-white rounded-full w-4 h-4 text-center text-xs font-bold leading-none cursor-help"
+                                      title="PARTECIPAZIONI DIRETTE, DI QUALSIASI ENTITA', NEL CAPITALE SOCIALE DI IMPRESE ITALIANE O STRANIERE - RUOLI DI AMMINISTRAZIONE O CONTROLLO IN IMPRESE ITALIANE O STRANIERE">?</span>
+                            </th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codice/i ATECO</th>
+                            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabellaAziende" class="bg-white divide-y divide-gray-200">
+                        <template id="rigaAziendaTemplate">
+                            <tr class="azienda-row">
+                                <td class="px-4 py-2 whitespace-nowrap"><input type="text" name="nomeAzienda" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Nome Impresa"></td>
+                                <td class="px-4 py-2 whitespace-nowrap"><input type="text" name="pivaCf" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="P.IVA o C.F."></td>
+                                <td class="px-4 py-2 whitespace-nowrap"><input type="text" name="ruolo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Ruolo ricoperto"></td>
+                                <td class="px-4 py-2 whitespace-nowrap"><input type="text" name="ateco" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Es: 47.11.10, ..."></td>
+                                <td class="px-4 py-2 whitespace-nowrap text-center align-middle space-x-2">
+                                    <button type="button" class="btnAltriSoggetti text-blue-600 hover:text-blue-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center" disabled>
+                                        Soggetti
+                                        <span class="inline-flex items-center justify-center ml-1 bg-gray-400 text-white rounded-full w-4 h-4 text-center text-xs font-bold leading-none cursor-help"
+                                              title="persone che sono proprietari, amministratori o direttori di queste imprese">?</span>
+                                    </button>
+                                    <button type="button" class="btnRimuoviRiga text-red-600 hover:text-red-800 text-sm font-medium" title="Rimuovi questa Impresa">Elimina</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4">
+                <button id="btnAggiungiAzienda" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
+                    Aggiungi Impresa
+                </button>
+            </div>
+            <div class="mt-8 flex justify-end space-x-4">
+                 <button id="btnVisualizzaRiepilogo" type="button" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
+                    Visualizza Riepilogo
+                </button>
+                <button id="btnConfermaChiudi" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out">
+                    Conferma e Chiudi
+                </button>
+            </div>
+        </div>
+
+        <div id="sezioneLegamiIndiretti" class="hidden mt-8 border border-gray-200 p-6 rounded-lg bg-gray-50">
+            <h2 class="text-xl font-semibold mb-4 text-gray-600">Verifica Legami Indiretti</h2>
+            <p class="text-sm text-gray-500 mb-4">Per ogni impresa con legame diretto, indica eventuali legami indiretti o seleziona la casella "Nessun Legame Indiretto".</p>
+            <div id="tabellaContainerIndiretti" class="mt-6 overflow-x-auto">
+                 <p id="nessunDatoIndirettoMsg" class="text-gray-500 italic">Nessuna impresa di riferimento trovata nella sezione Legami Diretti o sezione non accessibile.</p>
+                <table id="tabellaAziendeIndirette" class="min-w-full divide-y divide-gray-200 hidden">
+                     <thead class="bg-gray-100">
+                        <tr>
+                            <th scope="col" class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">Impresa Controllata Direttamente (Nome, PI/CF)</th>
+                            <th scope="col" class="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Nessun Legame Indiretto</th>
+                            <th scope="col" class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Nome Impresa Controllata</th>
+                            <th scope="col" class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">P.I. / C.F. Controllata</th>
+                            <th scope="col" class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/12">
+                                % di Controllo
+                                <span class="inline-flex items-center justify-center ml-1 bg-gray-400 text-white rounded-full w-4 h-4 text-center text-xs font-bold leading-none cursor-help"
+                                      title="SOCIETA' CONTROLLATA CON ALMENO IL 25% DI CONTROLLO DA PARTE DELL'IMPRESA CHE SI CONTROLLA DIRETTAMENTE.">?</span>
+                            </th>
+                            <th scope="col" class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">ATECO Controllata</th>
+                             <th scope="col" class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabellaAziendeIndirette" class="bg-white divide-y divide-gray-200">
+                        <template id="rigaAziendaIndirettaTemplate">
+                            <tr class="azienda-indiretta-row">
+                                <td class="px-2 py-2 whitespace-normal break-words align-top">
+                                    <input type="text" name="nomeAziendaDiretta" class="block w-full rounded-md border-gray-300 shadow-sm text-sm p-1 readonly-field mb-1" readonly>
+                                    <input type="text" name="pivaCfDiretta" class="block w-full rounded-md border-gray-300 shadow-sm text-sm p-1 readonly-field" readonly data-piva-diretta> </td>
+                                <td class="px-2 py-2 whitespace-nowrap text-center align-middle">
+                                    <input type="checkbox" name="chkNessunLegameIndiretto" class="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                </td>
+                                <td class="px-2 py-2 whitespace-nowrap align-top"><input type="text" name="nomeAziendaIndiretta" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Nome Impresa Controllata"></td>
+                                <td class="px-2 py-2 whitespace-nowrap align-top"><input type="text" name="pivaCfIndiretta" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="P.IVA / C.F."></td>
+                                <td class="px-2 py-2 whitespace-nowrap align-top"><input type="number" name="percentualeControllo" min="0" max="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="%"></td>
+                                <td class="px-2 py-2 whitespace-nowrap align-top"><input type="text" name="atecoIndiretta" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Es: 47.11.10, ..."></td>
+                                <td class="px-2 py-2 whitespace-nowrap text-center align-middle">
+                                     <button type="button" class="btnAltriSoggetti text-blue-600 hover:text-blue-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center" disabled>
+                                         Soggetti
+                                         <span class="inline-flex items-center justify-center ml-1 bg-gray-400 text-white rounded-full w-4 h-4 text-center text-xs font-bold leading-none cursor-help"
+                                              title="persone che sono proprietari, amministratori o direttori di queste imprese">?</span>
+                                     </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+             <div class="mt-8 flex justify-end space-x-4">
+                 <button id="btnVisualizzaRiepilogoIndiretto" type="button" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Visualizza Riepilogo Indiretto
+                </button>
+                <button id="btnConfermaChiudiIndiretto" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out">
+                    Conferma e Chiudi Indiretto
+                </button>
+            </div>
+        </div>
+
+        <div id="sezioneLegamiSocietari" class="hidden mt-8 border border-gray-200 p-6 rounded-lg bg-gray-50">
+            <h2 class="text-xl font-semibold mb-4 text-gray-600">Dichiarazione Legami Societari Aggiuntivi</h2>
+            <p class="text-sm text-gray-500 mb-4">Elenco dei soggetti identificati nelle sezioni precedenti. Per ciascuno, indica eventuali legami con altre imprese.</p>
+
+            <div id="tabellaContainerSoggetti" class="mt-6 overflow-x-auto">
+                 <p id="msgNessunSoggettoIdentificato" class="text-gray-500 italic">Nessun soggetto identificato nelle sezioni precedenti.</p>
+                <table id="tabellaSoggettiElencati" class="min-w-full divide-y divide-gray-200 hidden">
+                     <thead class="bg-gray-100">
+                        <tr>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cognome</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">C.F.</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impresa/Ruolo di Origine</th>
+                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabellaSoggettiElencati" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+                 <template id="rigaSoggettoElencatoTemplate">
+                     <tr class="soggetto-elencato-row">
+                         <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900" data-label="Nome"></td>
+                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500" data-label="Cognome"></td>
+                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500" data-label="CF"></td>
+                         <td class="px-3 py-2 whitespace-normal break-words text-sm text-gray-500" data-label="Origine"></td>
+                         <td class="px-3 py-2 whitespace-nowrap text-center align-middle">
+                             <button type="button" class="btnImpreseControllate text-purple-600 hover:text-purple-800 text-sm font-medium" title="Gestisci Imprese Controllate da questo Soggetto">Imprese Controllate</button>
+                         </td>
+                     </tr>
+                 </template>
+            </div>
+
+            <div class="mt-8 flex justify-end space-x-4">
+                <button id="btnConfermaChiudiSocietari" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out">
+                    Conferma e Chiudi
+                </button>
+            </div>
+        </div>
+
+
+    </div> <div id="popupOverlay" class="popup-overlay"></div>
+    <div id="popupRiepilogo" class="popup bg-white p-6 rounded-lg shadow-xl border border-gray-300">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">Riepilogo Legami Diretti</h3>
+            <button id="btnClosePopup" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <div id="contenutoPopup" class="max-h-96 overflow-y-auto"></div>
+    </div>
+
+     <div id="popupOverlayIndiretto" class="popup-overlay"></div>
+    <div id="popupRiepilogoIndiretto" class="popup bg-white p-6 rounded-lg shadow-xl border border-gray-300">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">Riepilogo Legami Indiretti</h3>
+            <button id="btnClosePopupIndiretto" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <div id="contenutoPopupIndiretto" class="max-h-[70vh] overflow-y-auto"></div>
+    </div>
+
+    <div id="modalAltriSoggettiOverlay" class="popup-overlay"></div>
+    <div id="modalAltriSoggetti" class="popup bg-white p-6 rounded-lg shadow-xl border border-gray-300 max-w-3xl"> <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h3 class="text-lg font-semibold text-gray-800">Altri Soggetti Collegati a: <span id="modalAltriSoggettiTitle" class="font-bold"></span></h3>
+            <button id="btnCloseModalSoggetti" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <input type="hidden" id="modalTargetPiva">
+        <input type="hidden" id="modalTargetIsDiretto">
+        <input type="hidden" id="modalTargetPivaDirettaAssociata">
+        <div class="mb-4 flex items-center">
+            <input type="checkbox" id="chkNessunAltroSoggetto" class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            <label for="chkNessunAltroSoggetto" class="text-gray-700">Nessun Altro Soggetto da dichiarare per questa impresa</label>
+        </div>
+        <div id="containerTabellaSoggetti" class="mt-4 overflow-x-auto">
+             <p id="msgNessunSoggetto" class="text-gray-500 italic hidden">Nessun soggetto inserito.</p>
+            <table id="tabellaAltriSoggetti" class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cognome</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">C.F.</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ruolo</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabellaAltriSoggetti" class="bg-white divide-y divide-gray-200"></tbody>
+            </table>
+            <template id="rigaSoggettoTemplate">
+                <tr class="soggetto-row">
+                    <td class="px-3 py-2"><input type="text" name="nomeSoggetto" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Nome"></td>
+                    <td class="px-3 py-2"><input type="text" name="cognomeSoggetto" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Cognome"></td>
+                    <td class="px-3 py-2"><input type="text" name="cfSoggetto" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Codice Fiscale"></td>
+                    <td class="px-3 py-2"><input type="text" name="ruoloSoggetto" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Ruolo"></td>
+                    <td class="px-3 py-2 text-center">
+                        <button type="button" class="btnRimuoviSoggetto text-red-600 hover:text-red-800 text-xs font-medium" title="Rimuovi Soggetto">Elimina</button>
+                    </td>
+                </tr>
+            </template>
+        </div>
+         <div class="mt-4">
+            <button id="btnAggiungiSoggetto" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
+                Aggiungi Soggetto
+            </button>
+        </div>
+        <div id="modalAltriSoggettiError" class="mt-4 text-red-600 text-sm hidden"></div>
+        <div class="mt-6 flex justify-end border-t pt-4">
+            <button id="btnConfermaChiudiSoggetti" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out">
+                Conferma e Chiudi
+            </button>
+        </div>
+    </div>
+
+    <div id="modalImpreseControllateOverlay" class="popup-overlay"></div>
+    <div id="modalImpreseControllate" class="popup bg-white p-6 rounded-lg shadow-xl border border-gray-300 max-w-4xl">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h3 class="text-lg font-semibold text-gray-800">Imprese Collegate a: <span id="modalImpreseControllateTitle" class="font-bold"></span></h3>
+            <button id="btnCloseModalImprese" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+
+        <input type="hidden" id="modalTargetCfSoggetto">
+
+        <div class="mb-4 flex items-center">
+            <input type="checkbox" id="chkNessunAltroLegameSocietario" class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            <label for="chkNessunAltroLegameSocietario" class="text-gray-700">Nessun Altro Legame Societario da dichiarare per questo soggetto</label>
+        </div>
+
+        <div id="containerTabellaImpreseLegate" class="mt-4 overflow-x-auto">
+             <p id="msgNessunaImpresaLegata" class="text-gray-500 italic hidden">Nessuna impresa collegata inserita.</p>
+            <table id="tabellaImpreseLegate" class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome Impresa</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">C.F. / P.I.</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tipo di Legame
+                            <span class="inline-flex items-center justify-center ml-1 bg-gray-400 text-white rounded-full w-4 h-4 text-center text-xs font-bold leading-none cursor-help"
+                                  title="PARTECIPAZIONI DIRETTE DI QUALSIASI ENTITA' NEL CAPITALE SOCIALE DI IMPRESE ITALIANE O ESTERE; RUOLI DI AMMINISTRAZIONE O CONTROLLO">?</span>
+                        </th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codice ATECO</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="corpoTabellaImpreseLegate" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+            </table>
+            <template id="rigaImpresaLegataTemplate">
+                <tr class="impresa-legata-row">
+                    <td class="px-3 py-2"><input type="text" name="nomeImpresaLegata" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Nome Impresa"></td>
+                    <td class="px-3 py-2"><input type="text" name="pivaCfImpresaLegata" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="P.IVA / C.F."></td>
+                    <td class="px-3 py-2"><input type="text" name="tipoLegameImpresa" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Es: Partecipazione, Amministratore"></td>
+                    <td class="px-3 py-2"><input type="text" name="atecoImpresaLegata" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Codice ATECO"></td>
+                    <td class="px-3 py-2 text-center align-middle space-x-1">
+                         <button type="button" class="btnLegameIndirettoSocietario text-green-600 hover:text-green-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center" disabled>
+                             Indiretto
+                             <span class="inline-flex items-center justify-center ml-1 bg-gray-400 text-white rounded-full w-4 h-4 text-center text-xs font-bold leading-none cursor-help"
+                                   title="elenco delle società da queste controllate con almeno il 25% del controllo">?</span>
+                         </button>
+                         <button type="button" class="btnRimuoviImpresaLegata text-red-600 hover:text-red-800 text-sm font-medium" title="Rimuovi Impresa">Elimina</button>
+                    </td>
+                </tr>
+            </template>
+        </div>
+
+         <div class="mt-4">
+            <button id="btnAggiungiImpresaLegata" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
+                Aggiungi Impresa
+            </button>
+        </div>
+
+        <div id="modalImpreseLegateError" class="mt-4 text-red-600 text-sm hidden"></div>
+
+        <div class="mt-6 flex justify-end border-t pt-4">
+            <button id="btnConfermaChiudiImpreseLegate" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out">
+                Conferma e Chiudi
+            </button>
+        </div>
+    </div>
+
+    <div id="modalLegamiIndirettiSocietariOverlay" class="popup-overlay"></div>
+    <div id="modalLegamiIndirettiSocietari" class="popup bg-white p-6 rounded-lg shadow-xl border border-gray-300 max-w-3xl">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+             <h3 class="text-lg font-semibold text-gray-800">Legami Indiretti per Impresa: <span id="modalLegamiIndirettiSocTitle" class="font-bold"></span></h3>
+             <button id="btnCloseModalLegamiIndirettiSoc" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+         <input type="hidden" id="modalTargetPivaImpresaLegata">
+         <input type="hidden" id="modalTargetCfSoggettoPadre"> <div class="mb-4 flex items-center">
+            <input type="checkbox" id="chkNessunLegameIndirettoSoc" class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+            <label for="chkNessunLegameIndirettoSoc" class="text-gray-700">Nessun Legame Indiretto Societario da dichiarare per questa impresa</label>
+        </div>
+
+         <div id="containerTabellaLegamiIndirettiSoc" class="mt-4 overflow-x-auto">
+             <p id="msgNessunLegameIndirettoSoc" class="text-gray-500 italic hidden">Nessun legame indiretto inserito.</p>
+             <table id="tabellaLegamiIndirettiSoc" class="min-w-full divide-y divide-gray-200 hidden">
+                 <thead class="bg-gray-100">
+                     <tr>
+                         <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome Impresa Indiretta</th>
+                         <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">C.F. / P.I.</th>
+                         <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Controllo (&ge;25)</th>
+                         <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Codici ATECO</th>
+                         <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                     </tr>
+                 </thead>
+                 <tbody id="corpoTabellaLegamiIndirettiSoc" class="bg-white divide-y divide-gray-200">
+                     </tbody>
+             </table>
+             <template id="rigaLegameIndirettoSocTemplate">
+                 <tr class="legame-ind-soc-row">
+                     <td class="px-3 py-2"><input type="text" name="nomeImpresaIndSoc" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Nome Impresa"></td>
+                     <td class="px-3 py-2"><input type="text" name="pivaCfImpresaIndSoc" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="P.IVA / C.F."></td>
+                     <td class="px-3 py-2"><input type="number" name="percControlloIndSoc" min="25" max="100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="% (&ge;25)"></td>
+                     <td class="px-3 py-2"><input type="text" name="atecoImpresaIndSoc" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1" placeholder="Codici ATECO"></td>
+                     <td class="px-3 py-2 text-center">
+                         <button type="button" class="btnRimuoviLegameIndSoc text-red-600 hover:text-red-800 text-xs font-medium" title="Rimuovi Legame">Elimina</button>
+                     </td>
+                 </tr>
+             </template>
+         </div>
+
+          <div class="mt-4">
+            <button id="btnAggiungiLegameIndirettoSoc" type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
+                Aggiungi Legame Indiretto
+            </button>
+        </div>
+
+         <div id="modalLegamiIndirettiSocError" class="mt-4 text-red-600 text-sm hidden"></div>
+
+         <div class="mt-6 flex justify-end border-t pt-4">
+            <button id="btnConfermaChiudiLegamiIndirettiSoc" type="button" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium shadow transition duration-150 ease-in-out">
+                Conferma e Chiudi
+            </button>
+        </div>
+    </div>
+
+
+    <script defer>
+        // ============== ELEMENTI DOM ==============
+        // ... (elementi DOM diretti, indiretti, modal soggetti come prima) ...
+         // Sezione Diretta
+        const btnLegamiDiretti = document.getElementById('btnLegamiDiretti');
+        const sezioneLegamiDiretti = document.getElementById('sezioneLegamiDiretti');
+        const chkNessunLegame = document.getElementById('chkNessunLegame');
+        const tabellaContainer = document.getElementById('tabellaContainer');
+        const tabellaAziende = document.getElementById('tabellaAziende');
+        const corpoTabellaAziende = document.getElementById('corpoTabellaAziende');
+        const rigaAziendaTemplate = document.getElementById('rigaAziendaTemplate');
+        const btnAggiungiAzienda = document.getElementById('btnAggiungiAzienda');
+        const btnVisualizzaRiepilogo = document.getElementById('btnVisualizzaRiepilogo');
+        const btnConfermaChiudi = document.getElementById('btnConfermaChiudi');
+        const nessunDatoMsg = document.getElementById('nessunDatoMsg');
+        const popupOverlay = document.getElementById('popupOverlay');
+        const popupRiepilogo = document.getElementById('popupRiepilogo');
+        const btnClosePopup = document.getElementById('btnClosePopup');
+        const contenutoPopup = document.getElementById('contenutoPopup');
+
+        // Sezione Indiretta
+        const btnLegamiIndiretti = document.getElementById('btnLegamiIndiretti');
+        const sezioneLegamiIndiretti = document.getElementById('sezioneLegamiIndiretti');
+        const tabellaContainerIndiretti = document.getElementById('tabellaContainerIndiretti');
+        const tabellaAziendeIndirette = document.getElementById('tabellaAziendeIndirette');
+        const corpoTabellaAziendeIndirette = document.getElementById('corpoTabellaAziendeIndirette');
+        const rigaAziendaIndirettaTemplate = document.getElementById('rigaAziendaIndirettaTemplate');
+        const btnVisualizzaRiepilogoIndiretto = document.getElementById('btnVisualizzaRiepilogoIndiretto');
+        const btnConfermaChiudiIndiretto = document.getElementById('btnConfermaChiudiIndiretto');
+        const nessunDatoIndirettoMsg = document.getElementById('nessunDatoIndirettoMsg');
+        const popupOverlayIndiretto = document.getElementById('popupOverlayIndiretto');
+        const popupRiepilogoIndiretto = document.getElementById('popupRiepilogoIndiretto');
+        const btnClosePopupIndiretto = document.getElementById('btnClosePopupIndiretto');
+        const contenutoPopupIndiretto = document.getElementById('contenutoPopupIndiretto');
+
+        // Modal Altri Soggetti
+        const modalAltriSoggettiOverlay = document.getElementById('modalAltriSoggettiOverlay');
+        const modalAltriSoggetti = document.getElementById('modalAltriSoggetti');
+        const modalAltriSoggettiTitle = document.getElementById('modalAltriSoggettiTitle');
+        const chkNessunAltroSoggetto = document.getElementById('chkNessunAltroSoggetto');
+        const containerTabellaSoggetti = document.getElementById('containerTabellaSoggetti');
+        const tabellaAltriSoggetti = document.getElementById('tabellaAltriSoggetti');
+        const corpoTabellaAltriSoggetti = document.getElementById('corpoTabellaAltriSoggetti');
+        const rigaSoggettoTemplate = document.getElementById('rigaSoggettoTemplate');
+        const btnAggiungiSoggetto = document.getElementById('btnAggiungiSoggetto');
+        const btnConfermaChiudiSoggetti = document.getElementById('btnConfermaChiudiSoggetti');
+        const btnCloseModalSoggetti = document.getElementById('btnCloseModalSoggetti');
+        const modalAltriSoggettiError = document.getElementById('modalAltriSoggettiError');
+        const msgNessunSoggetto = document.getElementById('msgNessunSoggetto');
+        const modalTargetPiva = document.getElementById('modalTargetPiva');
+        const modalTargetIsDiretto = document.getElementById('modalTargetIsDiretto');
+        const modalTargetPivaDirettaAssociata = document.getElementById('modalTargetPivaDirettaAssociata');
+
+        // NUOVO: Sezione Legami Societari
+        const btnLegamiSocietari = document.getElementById('btnLegamiSocietari');
+        const sezioneLegamiSocietari = document.getElementById('sezioneLegamiSocietari');
+        const tabellaContainerSoggetti = document.getElementById('tabellaContainerSoggetti');
+        const tabellaSoggettiElencati = document.getElementById('tabellaSoggettiElencati');
+        const corpoTabellaSoggettiElencati = document.getElementById('corpoTabellaSoggettiElencati');
+        const rigaSoggettoElencatoTemplate = document.getElementById('rigaSoggettoElencatoTemplate');
+        const btnConfermaChiudiSocietari = document.getElementById('btnConfermaChiudiSocietari');
+        const msgNessunSoggettoIdentificato = document.getElementById('msgNessunSoggettoIdentificato');
+
+        // NUOVO: Modal Imprese Controllate
+        const modalImpreseControllateOverlay = document.getElementById('modalImpreseControllateOverlay');
+        const modalImpreseControllate = document.getElementById('modalImpreseControllate');
+        const modalImpreseControllateTitle = document.getElementById('modalImpreseControllateTitle');
+        const chkNessunAltroLegameSocietario = document.getElementById('chkNessunAltroLegameSocietario');
+        const containerTabellaImpreseLegate = document.getElementById('containerTabellaImpreseLegate');
+        const tabellaImpreseLegate = document.getElementById('tabellaImpreseLegate');
+        const corpoTabellaImpreseLegate = document.getElementById('corpoTabellaImpreseLegate');
+        const rigaImpresaLegataTemplate = document.getElementById('rigaImpresaLegataTemplate');
+        const btnAggiungiImpresaLegata = document.getElementById('btnAggiungiImpresaLegata');
+        const btnConfermaChiudiImpreseLegate = document.getElementById('btnConfermaChiudiImpreseLegate');
+        const btnCloseModalImprese = document.getElementById('btnCloseModalImprese');
+        const modalImpreseLegateError = document.getElementById('modalImpreseLegateError');
+        const msgNessunaImpresaLegata = document.getElementById('msgNessunaImpresaLegata');
+        const modalTargetCfSoggetto = document.getElementById('modalTargetCfSoggetto');
+
+        // NUOVO: Modal Legami Indiretti Societari
+        const modalLegamiIndirettiSocietariOverlay = document.getElementById('modalLegamiIndirettiSocietariOverlay');
+        const modalLegamiIndirettiSocietari = document.getElementById('modalLegamiIndirettiSocietari');
+        const modalLegamiIndirettiSocTitle = document.getElementById('modalLegamiIndirettiSocTitle');
+        const chkNessunLegameIndirettoSoc = document.getElementById('chkNessunLegameIndirettoSoc');
+        const containerTabellaLegamiIndirettiSoc = document.getElementById('containerTabellaLegamiIndirettiSoc');
+        const tabellaLegamiIndirettiSoc = document.getElementById('tabellaLegamiIndirettiSoc');
+        const corpoTabellaLegamiIndirettiSoc = document.getElementById('corpoTabellaLegamiIndirettiSoc');
+        const rigaLegameIndirettoSocTemplate = document.getElementById('rigaLegameIndirettoSocTemplate');
+        const btnAggiungiLegameIndirettoSoc = document.getElementById('btnAggiungiLegameIndirettoSoc');
+        const btnConfermaChiudiLegamiIndirettiSoc = document.getElementById('btnConfermaChiudiLegamiIndirettiSoc');
+        const btnCloseModalLegamiIndirettiSoc = document.getElementById('btnCloseModalLegamiIndirettiSoc');
+        const modalLegamiIndirettiSocError = document.getElementById('modalLegamiIndirettiSocError');
+        const msgNessunLegameIndirettoSoc = document.getElementById('msgNessunLegameIndirettoSoc');
+        const modalTargetPivaImpresaLegata = document.getElementById('modalTargetPivaImpresaLegata');
+        const modalTargetCfSoggettoPadre = document.getElementById('modalTargetCfSoggettoPadre');
+
+
+        // ============== STATO GLOBALE ==============
+        let isSezioneDirettaAperta = false;
+        let isSezioneIndirettaAperta = false;
+        let isSezioneSocietariAperta = false;
+        let statoLegamiIndiretti = {};
+        let statoAltriSoggettiDiretti = {};
+        let statoLegamiSocietari = {};
+
+
+        // ============== FUNZIONI HELPER (DIRETTE & INDIRETTE) ==============
+        // ... (invariate) ...
+         function isRigaCompleta(riga) {
+            const inputs = riga.querySelectorAll('input[type="text"]');
+            const pivaInput = riga.querySelector('input[name="pivaCf"]');
+            return pivaInput && pivaInput.value.trim() !== '' && Array.from(inputs).every(input => input.value.trim() !== '');
+        }
+
+        function hasAlmenoUnaRigaCompleta() {
+            return Array.from(corpoTabellaAziende.querySelectorAll('tr.azienda-row')).some(isRigaCompleta);
+        }
+
+        function areTutteCheckboxIndiretteVisibiliSelezionate() {
+            const checkboxesVisibili = corpoTabellaAziendeIndirette.querySelectorAll('input[name="chkNessunLegameIndiretto"]');
+            if (checkboxesVisibili.length === 0) {
+                return false; // Se non ci sono righe visibili, non sono tutte selezionate
+            }
+            return Array.from(checkboxesVisibili).every(cb => cb.checked);
+        }
+
+        function areTutteCheckboxSalvateSelezionate() {
+            const aziendeDiretteComplete = Array.from(corpoTabellaAziende.querySelectorAll('tr.azienda-row')).filter(isRigaCompleta);
+            const numAziendeDiretteComplete = aziendeDiretteComplete.length;
+
+            if (numAziendeDiretteComplete === 0) {
+                return false; // Non ci sono aziende dirette complete, quindi non applicabile
+            }
+
+            let tutteCheck = true;
+            for (const rigaDiretta of aziendeDiretteComplete) {
+                 const pivaDiretta = rigaDiretta.querySelector('input[name="pivaCf"]').value;
+                 // Controlla se lo stato esiste e se la checkbox "nessunLegame" è selezionata
+                 if (!statoLegamiIndiretti[pivaDiretta]?.nessunLegame) {
+                      tutteCheck = false;
+                      break;
+                 }
+            }
+            // Restituisce true solo se ci sono aziende dirette complete E per tutte è stato salvato "nessunLegame"
+            return numAziendeDiretteComplete > 0 && tutteCheck;
+        }
+
+
+        // ============== FUNZIONI HELPER MODAL SOGGETTI ==============
+        // ... (invariate) ...
+         function isSoggettoValido(rigaSoggetto) {
+            const inputs = rigaSoggetto.querySelectorAll('input[type="text"]');
+            return Array.from(inputs).every(input => input.value.trim() !== '');
+        }
+
+        function aggiungiRigaSoggetto(tbody, soggetto = null, pivaImpresa, isDiretto) {
+            const nuovaRiga = rigaSoggettoTemplate.content.cloneNode(true);
+            const rigaElement = nuovaRiga.querySelector('tr');
+            const inputs = {
+                nome: rigaElement.querySelector('input[name="nomeSoggetto"]'),
+                cognome: rigaElement.querySelector('input[name="cognomeSoggetto"]'),
+                cf: rigaElement.querySelector('input[name="cfSoggetto"]'),
+                ruolo: rigaElement.querySelector('input[name="ruoloSoggetto"]')
+            };
+
+            if (soggetto) {
+                inputs.nome.value = soggetto.nome || '';
+                inputs.cognome.value = soggetto.cognome || '';
+                inputs.cf.value = soggetto.cf || '';
+                inputs.ruolo.value = soggetto.ruolo || '';
+            }
+
+            Object.values(inputs).forEach(input => {
+                input.addEventListener('input', () => {
+                    input.classList.remove('input-error');
+                    salvaStatoRigaSoggetto(rigaElement, pivaImpresa, isDiretto); // Salva ad ogni input
+                    modalAltriSoggettiError.classList.add('hidden');
+                });
+                 input.addEventListener('blur', () => {
+                     input.classList.toggle('input-error', input.value.trim() === '');
+                 });
+            });
+
+            const btnRimuovi = rigaElement.querySelector('.btnRimuoviSoggetto');
+            btnRimuovi.addEventListener('click', () => {
+                rimuoviSoggettoDaStato(rigaElement, pivaImpresa, isDiretto);
+                rigaElement.remove();
+                aggiornaVisibilitaTabellaSoggetti();
+                modalAltriSoggettiError.classList.add('hidden');
+            });
+
+            tbody.appendChild(rigaElement);
+            aggiornaVisibilitaTabellaSoggetti();
+        }
+
+        function salvaStatoRigaSoggetto(rigaElement, pivaImpresa, isDiretto) {
+            const index = Array.from(rigaElement.parentNode.children).indexOf(rigaElement);
+            let statoSoggettiObj = null;
+
+            // Determina quale oggetto stato aggiornare
+            if (isDiretto) {
+                if (!statoAltriSoggettiDiretti[pivaImpresa]) statoAltriSoggettiDiretti[pivaImpresa] = { nessunSoggetto: false, soggetti: [] };
+                statoSoggettiObj = statoAltriSoggettiDiretti[pivaImpresa];
+            } else {
+                const pivaDirettaAssociata = modalTargetPivaDirettaAssociata.value;
+                // Assicurati che lo stato indiretto e la sua proprietà altriSoggetti esistano
+                if (statoLegamiIndiretti[pivaDirettaAssociata] && statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti) {
+                     statoSoggettiObj = statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti;
+                } else {
+                     console.error("Stato altri soggetti indiretti non trovato per PIVA diretta:", pivaDirettaAssociata);
+                     return; // Non salvare se lo stato non è pronto
+                }
+            }
+
+             // Assicurati che l'array 'soggetti' esista
+             if (!statoSoggettiObj.soggetti) statoSoggettiObj.soggetti = [];
+
+             // Assicurati che l'oggetto per questo indice esista
+            if (!statoSoggettiObj.soggetti[index]) {
+                statoSoggettiObj.soggetti[index] = {};
+            }
+
+            // Aggiorna i dati del soggetto nello stato
+            const soggetto = statoSoggettiObj.soggetti[index];
+            soggetto.nome = rigaElement.querySelector('input[name="nomeSoggetto"]').value.trim();
+            soggetto.cognome = rigaElement.querySelector('input[name="cognomeSoggetto"]').value.trim();
+            soggetto.cf = rigaElement.querySelector('input[name="cfSoggetto"]').value.trim();
+            soggetto.ruolo = rigaElement.querySelector('input[name="ruoloSoggetto"]').value.trim();
+        }
+
+        function rimuoviSoggettoDaStato(rigaElement, pivaImpresa, isDiretto) {
+            const index = Array.from(rigaElement.parentNode.children).indexOf(rigaElement);
+            let statoSoggettiObj = null;
+
+             // Trova l'oggetto stato corretto
+             if (isDiretto) {
+                if (statoAltriSoggettiDiretti[pivaImpresa]) {
+                     statoSoggettiObj = statoAltriSoggettiDiretti[pivaImpresa];
+                }
+            } else {
+                const pivaDirettaAssociata = modalTargetPivaDirettaAssociata.value;
+                if (statoLegamiIndiretti[pivaDirettaAssociata] && statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti) {
+                     statoSoggettiObj = statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti;
+                }
+            }
+
+            // Rimuovi il soggetto dall'array se esiste
+            if (statoSoggettiObj && statoSoggettiObj.soggetti && statoSoggettiObj.soggetti.length > index) {
+                statoSoggettiObj.soggetti.splice(index, 1);
+            }
+        }
+
+        function aggiornaVisibilitaTabellaSoggetti() {
+             const righeSoggetti = corpoTabellaAltriSoggetti.querySelectorAll('tr.soggetto-row');
+             const hasRows = righeSoggetti.length > 0;
+             tabellaAltriSoggetti.classList.toggle('hidden', !hasRows);
+             msgNessunSoggetto.classList.toggle('hidden', hasRows);
+        }
+
+        function apriModalAltriSoggetti(pivaImpresa, nomeImpresa, isDiretto) {
+            // Imposta gli input nascosti per sapere a quale impresa si riferisce il modal
+            modalTargetPiva.value = pivaImpresa;
+            modalTargetIsDiretto.value = String(isDiretto);
+            // Se è un legame indiretto, la PIVA diretta associata è già stata impostata dal listener del bottone
+            modalAltriSoggettiTitle.textContent = `${nomeImpresa || 'Impresa non specificata'} (${pivaImpresa})`;
+            modalAltriSoggettiError.classList.add('hidden'); // Nascondi errori precedenti
+
+            let statoSoggettiObj = null;
+
+            // Recupera o inizializza lo stato per questa impresa
+            if (isDiretto) {
+                if (!statoAltriSoggettiDiretti[pivaImpresa]) {
+                    statoAltriSoggettiDiretti[pivaImpresa] = { nessunSoggetto: true, soggetti: [] }; // Default: nessun soggetto
+                }
+                statoSoggettiObj = statoAltriSoggettiDiretti[pivaImpresa];
+            } else {
+                 const pivaDirettaAssociata = modalTargetPivaDirettaAssociata.value;
+                 // Assicurati che lo stato indiretto e la sua proprietà altriSoggetti esistano
+                 if (statoLegamiIndiretti[pivaDirettaAssociata]) {
+                      if (!statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti) {
+                           // Inizializza se non esiste
+                           statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti = { nessunSoggetto: true, soggetti: [] };
+                      }
+                      statoSoggettiObj = statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti;
+                 } else {
+                     console.error("Stato legami indiretti non trovato per PIVA diretta:", pivaDirettaAssociata);
+                     statoSoggettiObj = { nessunSoggetto: true, soggetti: [] }; // Fallback sicuro
+                 }
+            }
+
+
+            // Imposta la checkbox e la visibilità della tabella in base allo stato
+            chkNessunAltroSoggetto.checked = statoSoggettiObj.nessunSoggetto;
+            containerTabellaSoggetti.classList.toggle('hidden', statoSoggettiObj.nessunSoggetto);
+            btnAggiungiSoggetto.disabled = statoSoggettiObj.nessunSoggetto;
+
+            // Pulisci e ripopola la tabella dei soggetti
+            corpoTabellaAltriSoggetti.innerHTML = '';
+            if (!statoSoggettiObj.nessunSoggetto && statoSoggettiObj.soggetti) {
+                statoSoggettiObj.soggetti.forEach(soggetto => {
+                    // Aggiungi una riga per ogni soggetto salvato
+                    aggiungiRigaSoggetto(corpoTabellaAltriSoggetti, soggetto, pivaImpresa, isDiretto);
+                });
+            }
+             aggiornaVisibilitaTabellaSoggetti(); // Mostra/nascondi tabella o messaggio
+
+            // Mostra il modal
+            modalAltriSoggettiOverlay.style.display = 'block';
+            modalAltriSoggetti.style.display = 'block';
+        }
+
+        function chiudiModalAltriSoggetti() {
+            modalAltriSoggettiOverlay.style.display = 'none';
+            modalAltriSoggetti.style.display = 'none';
+            modalAltriSoggettiError.classList.add('hidden');
+        }
+
+        function handleSalvaSoggetti() {
+            const pivaImpresa = modalTargetPiva.value;
+            const isDiretto = modalTargetIsDiretto.value === 'true';
+            const isNessunoChecked = chkNessunAltroSoggetto.checked;
+            const righeSoggetti = corpoTabellaAltriSoggetti.querySelectorAll('tr.soggetto-row');
+
+            let isValid = true;
+            let hasValidSubjects = false; // Flag per controllare se c'è almeno un soggetto valido
+
+            if (!isNessunoChecked) {
+                // Se la checkbox non è selezionata, deve esserci almeno una riga soggetto
+                if (righeSoggetti.length === 0) {
+                    isValid = false;
+                } else {
+                    // Controlla la validità di ogni riga soggetto
+                    righeSoggetti.forEach(riga => {
+                         const soggettoValidoRiga = isSoggettoValido(riga);
+                         if (soggettoValidoRiga) {
+                             hasValidSubjects = true; // Trovato almeno un soggetto valido
+                             salvaStatoRigaSoggetto(riga, pivaImpresa, isDiretto); // Salva i dati validi
+                         } else {
+                              isValid = false; // Anche una sola riga invalida rende il salvataggio non valido
+                               // Evidenzia gli errori negli input vuoti
+                               riga.querySelectorAll('input[type="text"]').forEach(input => {
+                                   input.classList.toggle('input-error', input.value.trim() === '');
+                               });
+                         }
+                    });
+                     // Se non ci sono soggetti validi inseriti, non è valido
+                     if (!hasValidSubjects) isValid = false;
+                }
+            } else {
+                 // Se la checkbox è selezionata, salva questo stato
+                 let statoSoggettiObj = null;
+                 if (isDiretto) {
+                     if (statoAltriSoggettiDiretti[pivaImpresa]) statoSoggettiObj = statoAltriSoggettiDiretti[pivaImpresa];
+                 } else {
+                     const pivaDirettaAssociata = modalTargetPivaDirettaAssociata.value;
+                     if (statoLegamiIndiretti[pivaDirettaAssociata]?.altriSoggetti) {
+                          statoSoggettiObj = statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti;
+                     }
+                 }
+                 // Aggiorna lo stato per indicare che non ci sono soggetti
+                 if (statoSoggettiObj) {
+                     statoSoggettiObj.nessunSoggetto = true;
+                     statoSoggettiObj.soggetti = []; // Svuota l'array dei soggetti
+                 }
+            }
+
+            // Se tutto è valido, chiudi il modal e aggiorna l'UI principale
+            if (isValid) {
+                chiudiModalAltriSoggetti();
+                aggiornaStatoUI(); // Aggiorna l'UI principale (es: colore bottone Legami Societari)
+            } else {
+                // Mostra un messaggio di errore se non valido
+                modalAltriSoggettiError.textContent = 'Se non selezioni "Nessun Altro Soggetto", devi inserire almeno un soggetto con tutti i campi compilati.';
+                modalAltriSoggettiError.classList.remove('hidden');
+            }
+        }
+
+
+        // ============== NUOVE FUNZIONI SEZIONE SOCIETARI ==============
+
+        // Aggrega soggetti unici da statoAltriSoggettiDiretti e statoLegamiIndiretti
+        function aggregaSoggettiUnici() {
+            const soggettiMap = new Map(); // Usa CF come chiave per garantire unicità
+
+            // Itera sui soggetti collegati alle imprese dirette
+            Object.entries(statoAltriSoggettiDiretti).forEach(([pivaDiretta, statoDiretto]) => {
+                // Considera solo se non è stato selezionato "nessun soggetto" e ci sono soggetti nell'array
+                if (!statoDiretto.nessunSoggetto && statoDiretto.soggetti && statoDiretto.soggetti.length > 0) {
+                    // Trova il nome dell'impresa diretta corrispondente per l'origine
+                    const rigaDirettaCorrispondente = Array.from(corpoTabellaAziende.querySelectorAll('tr.azienda-row')).find(r => r.querySelector(`input[name="pivaCf"]`)?.value === pivaDiretta);
+                    const impresaDirettaNome = rigaDirettaCorrispondente?.querySelector('input[name="nomeAzienda"]')?.value || pivaDiretta; // Fallback su PIVA
+
+                    statoDiretto.soggetti.forEach(soggetto => {
+                        // Aggiungi solo soggetti con un CF valido
+                        if (soggetto.cf && soggetto.cf.trim()) {
+                            const cf = soggetto.cf.trim().toUpperCase(); // Normalizza CF
+                            // Se il soggetto non è già nella mappa, aggiungilo
+                            if (!soggettiMap.has(cf)) {
+                                soggettiMap.set(cf, {
+                                    nome: soggetto.nome,
+                                    cognome: soggetto.cognome,
+                                    cf: cf,
+                                    fonti: [] // Array per tracciare da dove proviene il soggetto
+                                });
+                            }
+                             // Aggiungi l'origine (impresa e ruolo) a questo soggetto
+                             soggettiMap.get(cf).fonti.push({ tipo: 'Diretto', nomeImpresa: impresaDirettaNome, ruolo: soggetto.ruolo });
+                        }
+                    });
+                }
+            });
+
+            // Itera sui soggetti collegati alle imprese indirette
+             Object.entries(statoLegamiIndiretti).forEach(([pivaDiretta, statoIndiretto]) => {
+                 // Considera solo se c'è un legame indiretto valido e ci sono soggetti associati
+                 if (!statoIndiretto.nessunLegame && statoIndiretto.pivaInd?.trim() && statoIndiretto.altriSoggetti && !statoIndiretto.altriSoggetti.nessunSoggetto && statoIndiretto.altriSoggetti.soggetti && statoIndiretto.altriSoggetti.soggetti.length > 0) {
+                     const impresaIndirettaNome = statoIndiretto.nomeInd || statoIndiretto.pivaInd; // Nome o PIVA dell'impresa indiretta
+
+                     statoIndiretto.altriSoggetti.soggetti.forEach(soggetto => {
+                          // Aggiungi solo soggetti con CF valido
+                          if (soggetto.cf && soggetto.cf.trim()) {
+                            const cf = soggetto.cf.trim().toUpperCase(); // Normalizza CF
+                            // Se non esiste, aggiungi il soggetto alla mappa
+                            if (!soggettiMap.has(cf)) {
+                                soggettiMap.set(cf, {
+                                    nome: soggetto.nome,
+                                    cognome: soggetto.cognome,
+                                    cf: cf,
+                                    fonti: []
+                                });
+                            }
+                             // Aggiungi l'origine indiretta
+                             soggettiMap.get(cf).fonti.push({ tipo: 'Indiretto', nomeImpresa: impresaIndirettaNome, ruolo: soggetto.ruolo });
+                        }
+                     });
+                 }
+             });
+
+            // Converti la mappa in un array di oggetti per la tabella, prendendo la prima fonte come rappresentativa
+            const soggettiUnici = Array.from(soggettiMap.values()).map(soggetto => {
+                 const primaFonte = soggetto.fonti[0] || { nomeImpresa: 'N/D', ruolo: 'N/D' }; // Gestisci caso senza fonti (non dovrebbe succedere)
+                 return {
+                      nome: soggetto.nome,
+                      cognome: soggetto.cognome,
+                      cf: soggetto.cf,
+                      // Mostra l'origine (prima impresa/ruolo trovati)
+                      origine: `${primaFonte.nomeImpresa} (${primaFonte.ruolo})`
+                 };
+            });
+
+            return soggettiUnici;
+        }
+
+        // Popola la tabella dei soggetti aggregati nella sezione Legami Societari
+        function popolaTabellaSoggettiElencati() {
+             const soggetti = aggregaSoggettiUnici(); // Ottieni l'elenco dei soggetti unici
+             corpoTabellaSoggettiElencati.innerHTML = ''; // Pulisci la tabella esistente
+
+             // Se ci sono soggetti da mostrare
+             if (soggetti.length > 0) {
+                 tabellaSoggettiElencati.classList.remove('hidden'); // Mostra la tabella
+                 msgNessunSoggettoIdentificato.classList.add('hidden'); // Nascondi il messaggio "nessun soggetto"
+
+                 // Per ogni soggetto, crea una riga nella tabella
+                 soggetti.forEach(soggetto => {
+                      const nuovaRiga = rigaSoggettoElencatoTemplate.content.cloneNode(true); // Clona il template della riga
+                      const rigaElement = nuovaRiga.querySelector('tr');
+
+                      // Popola le celle della riga con i dati del soggetto
+                      rigaElement.querySelector('[data-label="Nome"]').textContent = soggetto.nome;
+                      rigaElement.querySelector('[data-label="Cognome"]').textContent = soggetto.cognome;
+                      rigaElement.querySelector('[data-label="CF"]').textContent = soggetto.cf;
+                      rigaElement.querySelector('[data-label="Origine"]').textContent = soggetto.origine;
+
+                      // Aggiungi listener al bottone "Imprese Controllate" per aprire il modal corrispondente
+                      const btnImprese = rigaElement.querySelector('.btnImpreseControllate');
+                      btnImprese.addEventListener('click', () => {
+                           // Passa CF e nome completo al modal
+                           apriModalImpreseControllate(soggetto.cf, `${soggetto.nome} ${soggetto.cognome}`);
+                      });
+
+                      // Aggiungi la riga completa al corpo della tabella
+                      corpoTabellaSoggettiElencati.appendChild(rigaElement);
+                 });
+             } else {
+                  // Se non ci sono soggetti, nascondi la tabella e mostra il messaggio
+                  tabellaSoggettiElencati.classList.add('hidden');
+                  msgNessunSoggettoIdentificato.classList.remove('hidden');
+             }
+        }
+
+        // ============== NUOVE FUNZIONI MODAL IMPRESE CONTROLLATE ==============
+
+        function isImpresaLegataValida(rigaImpresa) {
+             const inputs = rigaImpresa.querySelectorAll('input[type="text"], input[type="number"]'); // Considera tutti gli input
+             let isValid = true;
+             inputs.forEach(input => {
+                 // Tutti i campi devono essere compilati
+                 if (input.value.trim() === '') {
+                     isValid = false;
+                 }
+                 // Aggiungere qui eventuali validazioni specifiche se necessario (es. formato PIVA/CF)
+             });
+             return isValid;
+        }
+
+
+        function aggiungiRigaImpresaLegata(tbody, impresa = null, cfSoggetto) {
+             const nuovaRiga = rigaImpresaLegataTemplate.content.cloneNode(true); // Clona template
+             const rigaElement = nuovaRiga.querySelector('tr');
+             // Ottieni riferimenti agli input e al bottone "Indiretto"
+             const inputs = {
+                 nome: rigaElement.querySelector('input[name="nomeImpresaLegata"]'),
+                 piva: rigaElement.querySelector('input[name="pivaCfImpresaLegata"]'),
+                 tipo: rigaElement.querySelector('input[name="tipoLegameImpresa"]'),
+                 ateco: rigaElement.querySelector('input[name="atecoImpresaLegata"]')
+             };
+             const btnLegameIndiretto = rigaElement.querySelector('.btnLegameIndirettoSocietario');
+
+             // Se vengono passati dati di un'impresa, popola gli input
+             if (impresa) {
+                 inputs.nome.value = impresa.nome || '';
+                 inputs.piva.value = impresa.piva || '';
+                 inputs.tipo.value = impresa.tipoLegame || '';
+                 inputs.ateco.value = impresa.ateco || '';
+             }
+
+             // Abilita/Disabilita il bottone "Indiretto" in base alla presenza della PIVA/CF
+             btnLegameIndiretto.disabled = !inputs.piva.value.trim();
+
+             // Aggiungi listener agli input per salvare lo stato e gestire errori
+             Object.values(inputs).forEach(input => {
+                 input.addEventListener('input', () => {
+                     input.classList.remove('input-error'); // Rimuovi bordo rosso su input
+                     salvaStatoRigaImpresaLegata(rigaElement, cfSoggetto); // Salva stato ad ogni modifica
+                     // Se cambia la PIVA/CF, aggiorna l'abilitazione del bottone "Indiretto"
+                     if (input.name === 'pivaCfImpresaLegata') {
+                         btnLegameIndiretto.disabled = input.value.trim() === '';
+                         // Se la PIVA viene cancellata, resetta lo stato dei legami indiretti associati
+                         if(input.value.trim() === '') {
+                             resettaStatoLegamiIndirettiSocietari(rigaElement, cfSoggetto);
+                         }
+                     }
+                     modalImpreseLegateError.classList.add('hidden'); // Nascondi messaggio errore generale
+                 });
+                 // Su perdita focus, evidenzia se vuoto
+                 input.addEventListener('blur', () => {
+                     input.classList.toggle('input-error', input.value.trim() === '');
+                 });
+             });
+
+             // Listener per il bottone Rimuovi Riga
+             const btnRimuovi = rigaElement.querySelector('.btnRimuoviImpresaLegata');
+             btnRimuovi.addEventListener('click', () => {
+                 rimuoviImpresaLegataDaStato(rigaElement, cfSoggetto); // Rimuovi dallo stato
+                 rigaElement.remove(); // Rimuovi dal DOM
+                 aggiornaVisibilitaTabellaImpreseLegate(); // Aggiorna UI tabella
+                 modalImpreseLegateError.classList.add('hidden'); // Nascondi errore
+             });
+
+             tbody.appendChild(rigaElement); // Aggiungi riga al DOM
+             aggiornaVisibilitaTabellaImpreseLegate(); // Aggiorna UI tabella
+        }
+
+         function salvaStatoRigaImpresaLegata(rigaElement, cfSoggetto) {
+             // Trova l'indice della riga nel DOM per corrispondenza con l'indice nell'array dello stato
+             const index = Array.from(rigaElement.parentNode.children).indexOf(rigaElement);
+             // Assicurati che lo stato per questo soggetto e l'array imprese esistano
+             if (!statoLegamiSocietari[cfSoggetto] || !statoLegamiSocietari[cfSoggetto].imprese) return;
+
+             // Se l'oggetto per questo indice non esiste, crealo (necessario se si aggiunge una nuova riga)
+             if (!statoLegamiSocietari[cfSoggetto].imprese[index]) {
+                 // Inizializza con la struttura completa, inclusi i legami indiretti vuoti
+                 statoLegamiSocietari[cfSoggetto].imprese[index] = { legamiIndiretti: { nessunLegame: true, imprese: [] } };
+             }
+
+             // Ottieni il riferimento all'oggetto impresa nello stato
+             const impresa = statoLegamiSocietari[cfSoggetto].imprese[index];
+             // Aggiorna i valori dell'impresa nello stato con quelli degli input
+             impresa.nome = rigaElement.querySelector('input[name="nomeImpresaLegata"]').value.trim();
+             impresa.piva = rigaElement.querySelector('input[name="pivaCfImpresaLegata"]').value.trim();
+             impresa.tipoLegame = rigaElement.querySelector('input[name="tipoLegameImpresa"]').value.trim();
+             impresa.ateco = rigaElement.querySelector('input[name="atecoImpresaLegata"]').value.trim();
+
+             // Assicura che la struttura per i legami indiretti esista sempre
+             if (!impresa.legamiIndiretti) {
+                 impresa.legamiIndiretti = { nessunLegame: true, imprese: [] };
+             }
+         }
+
+         function resettaStatoLegamiIndirettiSocietari(rigaElement, cfSoggetto) {
+              // Trova l'indice della riga
+              const index = Array.from(rigaElement.parentNode.children).indexOf(rigaElement);
+              // Se l'impresa esiste nello stato a quell'indice, resetta i suoi legami indiretti
+              if (statoLegamiSocietari[cfSoggetto]?.imprese[index]) {
+                   statoLegamiSocietari[cfSoggetto].imprese[index].legamiIndiretti = { nessunLegame: true, imprese: [] };
+              }
+         }
+
+
+         function rimuoviImpresaLegataDaStato(rigaElement, cfSoggetto) {
+              // Trova l'indice della riga
+              const index = Array.from(rigaElement.parentNode.children).indexOf(rigaElement);
+              // Se l'array imprese esiste e la riga è presente, rimuovila
+              if (statoLegamiSocietari[cfSoggetto]?.imprese?.length > index) {
+                  statoLegamiSocietari[cfSoggetto].imprese.splice(index, 1);
+              }
+         }
+
+         function aggiornaVisibilitaTabellaImpreseLegate() {
+             // Controlla se ci sono righe nella tabella
+             const righeImprese = corpoTabellaImpreseLegate.querySelectorAll('tr.impresa-legata-row');
+             const hasRows = righeImprese.length > 0;
+             // Mostra/nascondi tabella o messaggio "nessuna impresa"
+             tabellaImpreseLegate.classList.toggle('hidden', !hasRows);
+             msgNessunaImpresaLegata.classList.toggle('hidden', hasRows);
+         }
+
+
+         function apriModalImpreseControllate(cfSoggetto, nomeSoggetto) {
+             // Imposta il CF del soggetto target nel modal
+             modalTargetCfSoggetto.value = cfSoggetto;
+             // Imposta il titolo del modal
+             modalImpreseControllateTitle.textContent = `${nomeSoggetto} (${cfSoggetto})`;
+             modalImpreseLegateError.classList.add('hidden'); // Nascondi errori precedenti
+
+             // Recupera o inizializza lo stato per questo soggetto
+             if (!statoLegamiSocietari[cfSoggetto]) {
+                 statoLegamiSocietari[cfSoggetto] = { nessunLegame: true, imprese: [] }; // Default: nessun legame
+             }
+             const statoSoggetto = statoLegamiSocietari[cfSoggetto];
+
+             // Imposta la checkbox "Nessun Altro Legame"
+             chkNessunAltroLegameSocietario.checked = statoSoggetto.nessunLegame;
+             // Mostra/nascondi la tabella delle imprese in base alla checkbox
+             containerTabellaImpreseLegate.classList.toggle('hidden', statoSoggetto.nessunLegame);
+             // Abilita/disabilita il bottone "Aggiungi Impresa"
+             btnAggiungiImpresaLegata.disabled = statoSoggetto.nessunLegame;
+
+             // Pulisci e ripopola la tabella delle imprese legate
+             corpoTabellaImpreseLegate.innerHTML = '';
+             if (!statoSoggetto.nessunLegame && statoSoggetto.imprese) {
+                 statoSoggetto.imprese.forEach(impresa => {
+                     // Assicura che ogni impresa abbia la struttura per i legami indiretti
+                     if (!impresa.legamiIndiretti) {
+                         impresa.legamiIndiretti = { nessunLegame: true, imprese: [] };
+                     }
+                     // Aggiungi la riga per l'impresa
+                     aggiungiRigaImpresaLegata(corpoTabellaImpreseLegate, impresa, cfSoggetto);
+                 });
+             }
+             aggiornaVisibilitaTabellaImpreseLegate(); // Aggiorna UI tabella
+
+             // Mostra il modal
+             modalImpreseControllateOverlay.style.display = 'block';
+             modalImpreseControllate.style.display = 'block';
+         }
+
+         function chiudiModalImpreseControllate() {
+              modalImpreseControllateOverlay.style.display = 'none';
+              modalImpreseControllate.style.display = 'none';
+              modalImpreseLegateError.classList.add('hidden');
+         }
+
+         function handleSalvaImpreseLegate() {
+             const cfSoggetto = modalTargetCfSoggetto.value;
+             const isNessunoChecked = chkNessunAltroLegameSocietario.checked;
+             const righeImprese = corpoTabellaImpreseLegate.querySelectorAll('tr.impresa-legata-row');
+
+             let isValid = true;
+             let hasValidImprese = false; // Flag per almeno un'impresa valida
+
+             if (!isNessunoChecked) {
+                 // Se non checkato, deve esserci almeno un'impresa
+                 if (righeImprese.length === 0) {
+                     isValid = false;
+                 } else {
+                     // Valida ogni riga impresa
+                     righeImprese.forEach(riga => {
+                          const impresaValidaRiga = isImpresaLegataValida(riga);
+                          if (impresaValidaRiga) {
+                              hasValidImprese = true; // Trovata impresa valida
+                              salvaStatoRigaImpresaLegata(riga, cfSoggetto); // Salva i dati validi
+                          } else {
+                               isValid = false; // Anche una riga invalida blocca il salvataggio
+                                // Evidenzia errori
+                                riga.querySelectorAll('input[type="text"], input[type="number"]').forEach(input => {
+                                    input.classList.toggle('input-error', input.value.trim() === '');
+                                });
+                          }
+                     });
+                      // Se non c'è nessuna impresa valida, non è valido
+                      if (!hasValidImprese) isValid = false;
+                 }
+             } else {
+                  // Se checkato, aggiorna lo stato del soggetto
+                  if (statoLegamiSocietari[cfSoggetto]) {
+                      statoLegamiSocietari[cfSoggetto].nessunLegame = true;
+                      statoLegamiSocietari[cfSoggetto].imprese = []; // Svuota array imprese
+                  }
+             }
+
+             // Se valido, chiudi modal e aggiorna UI
+             if (isValid) {
+                 chiudiModalImpreseControllate();
+                 aggiornaStatoUI(); // Aggiorna UI principale (es. colore bottone)
+             } else {
+                 // Mostra errore
+                 modalImpreseLegateError.textContent = 'Se non selezioni "Nessun Altro Legame", devi inserire almeno un\'impresa con tutti i campi compilati.';
+                 modalImpreseLegateError.classList.remove('hidden');
+             }
+         }
+
+        // ============== NUOVE FUNZIONI MODAL LEGAMI INDIRETTI SOCIETARI ==============
+
+         function isLegameIndirettoSocValido(riga) {
+             const inputs = riga.querySelectorAll('input[type="text"], input[type="number"]');
+             let isValid = true;
+             inputs.forEach(input => {
+                 // Tutti i campi devono essere compilati
+                 if (input.value.trim() === '') {
+                     isValid = false;
+                 }
+                 // Validazione specifica per % controllo
+                 if (input.name === 'percControlloIndSoc' && input.value.trim() !== '') {
+                      const perc = parseFloat(input.value);
+                      // Deve essere un numero tra 25 e 100 inclusi
+                      if (isNaN(perc) || perc < 25 || perc > 100) {
+                           isValid = false;
+                      }
+                 }
+             });
+             return isValid;
+         }
+
+
+         function aggiungiRigaLegameIndirettoSoc(tbody, legame = null, cfSoggettoPadre, pivaImpresaLegata) {
+             const nuovaRiga = rigaLegameIndirettoSocTemplate.content.cloneNode(true); // Clona template
+             const rigaElement = nuovaRiga.querySelector('tr');
+             // Riferimenti agli input
+             const inputs = {
+                 nome: rigaElement.querySelector('input[name="nomeImpresaIndSoc"]'),
+                 piva: rigaElement.querySelector('input[name="pivaCfImpresaIndSoc"]'),
+                 ctrl: rigaElement.querySelector('input[name="percControlloIndSoc"]'),
+                 ateco: rigaElement.querySelector('input[name="atecoImpresaIndSoc"]')
+             };
+
+             // Popola input se dati forniti
+             if (legame) {
+                 inputs.nome.value = legame.nome || '';
+                 inputs.piva.value = legame.piva || '';
+                 inputs.ctrl.value = legame.ctrl || '';
+                 inputs.ateco.value = legame.ateco || '';
+             }
+
+             // Listener per input (salvataggio stato, gestione errori)
+             Object.values(inputs).forEach(input => {
+                 input.addEventListener('input', () => {
+                     input.classList.remove('input-error'); // Rimuovi errore su input
+                     salvaStatoRigaLegameIndirettoSoc(rigaElement, cfSoggettoPadre, pivaImpresaLegata); // Salva stato
+                     modalLegamiIndirettiSocError.classList.add('hidden'); // Nascondi errore generale
+                 });
+                  // Listener per blur (validazione e visualizzazione errori)
+                  input.addEventListener('blur', () => {
+                     // Errore generico se vuoto
+                     input.classList.toggle('input-error', input.value.trim() === '');
+                      // Validazione specifica % controllo
+                      if (input.name === 'percControlloIndSoc' && input.value.trim() !== '') {
+                           const perc = parseFloat(input.value);
+                           input.classList.toggle('input-error', isNaN(perc) || perc < 25 || perc > 100);
+                      }
+                 });
+             });
+
+             // Listener bottone Rimuovi
+             const btnRimuovi = rigaElement.querySelector('.btnRimuoviLegameIndSoc');
+             btnRimuovi.addEventListener('click', () => {
+                 rimuoviLegameIndirettoSocDaStato(rigaElement, cfSoggettoPadre, pivaImpresaLegata); // Rimuovi da stato
+                 rigaElement.remove(); // Rimuovi da DOM
+                 aggiornaVisibilitaTabellaLegamiIndSoc(); // Aggiorna UI tabella
+                 modalLegamiIndirettiSocError.classList.add('hidden'); // Nascondi errore
+             });
+
+             tbody.appendChild(rigaElement); // Aggiungi riga al DOM
+             aggiornaVisibilitaTabellaLegamiIndSoc(); // Aggiorna UI tabella
+         }
+
+         function salvaStatoRigaLegameIndirettoSoc(rigaElement, cfSoggettoPadre, pivaImpresaLegata) {
+             // Trova indice riga nel DOM
+             const indexRiga = Array.from(rigaElement.parentNode.children).indexOf(rigaElement);
+             // Trova l'indice dell'impresa legata (a cui questo legame indiretto appartiene) nello stato del soggetto padre
+             const impresaLegataIndex = statoLegamiSocietari[cfSoggettoPadre]?.imprese?.findIndex(imp => imp.piva === pivaImpresaLegata);
+             // Se non troviamo l'impresa legata, non possiamo salvare
+             if (impresaLegataIndex === undefined || impresaLegataIndex < 0) return;
+
+             // Ottieni riferimento allo stato dei legami indiretti dell'impresa legata
+             const statoLegamiInd = statoLegamiSocietari[cfSoggettoPadre].imprese[impresaLegataIndex].legamiIndiretti;
+             // Se lo stato non esiste o manca l'array imprese, non salvare (dovrebbe essere inizializzato prima)
+             if (!statoLegamiInd || !statoLegamiInd.imprese) {
+                  console.error("Stato legami indiretti societari non inizializzato correttamente.");
+                  return;
+             }
+
+             // Se l'oggetto per questo legame indiretto non esiste nell'array, crealo
+             if (!statoLegamiInd.imprese[indexRiga]) {
+                 statoLegamiInd.imprese[indexRiga] = {};
+             }
+
+             // Aggiorna i dati del legame indiretto nello stato
+             const legame = statoLegamiInd.imprese[indexRiga];
+             legame.nome = rigaElement.querySelector('input[name="nomeImpresaIndSoc"]').value.trim();
+             legame.piva = rigaElement.querySelector('input[name="pivaCfImpresaIndSoc"]').value.trim();
+             legame.ctrl = rigaElement.querySelector('input[name="percControlloIndSoc"]').value.trim();
+             legame.ateco = rigaElement.querySelector('input[name="atecoImpresaIndSoc"]').value.trim();
+         }
+
+         function rimuoviLegameIndirettoSocDaStato(rigaElement, cfSoggettoPadre, pivaImpresaLegata) {
+              // Trova indice riga nel DOM
+              const indexRiga = Array.from(rigaElement.parentNode.children).indexOf(rigaElement);
+              // Trova indice impresa legata nello stato
+              const impresaLegataIndex = statoLegamiSocietari[cfSoggettoPadre]?.imprese?.findIndex(imp => imp.piva === pivaImpresaLegata);
+              if (impresaLegataIndex === undefined || impresaLegataIndex < 0) return;
+
+              // Ottieni riferimento allo stato dei legami indiretti
+              const statoLegamiInd = statoLegamiSocietari[cfSoggettoPadre].imprese[impresaLegataIndex].legamiIndiretti;
+              // Se l'array imprese esiste e la riga è presente, rimuovila
+              if (statoLegamiInd?.imprese?.length > indexRiga) {
+                  statoLegamiInd.imprese.splice(indexRiga, 1);
+              }
+         }
+
+         function aggiornaVisibilitaTabellaLegamiIndSoc() {
+             // Controlla se ci sono righe nella tabella
+             const righeLegami = corpoTabellaLegamiIndirettiSoc.querySelectorAll('tr.legame-ind-soc-row');
+             const hasRows = righeLegami.length > 0;
+             // Mostra/nascondi tabella o messaggio "nessun legame"
+             tabellaLegamiIndirettiSoc.classList.toggle('hidden', !hasRows);
+             msgNessunLegameIndirettoSoc.classList.toggle('hidden', hasRows);
+         }
+
+         function apriModalLegamiIndirettiSoc(cfSoggettoPadre, pivaImpresaLegata, nomeImpresaLegata) {
+             let statoImpresaLegata = null;
+             // Trova l'indice e lo stato dell'impresa legata a cui aggiungere/modificare legami indiretti
+             const impresaLegataIndex = statoLegamiSocietari[cfSoggettoPadre]?.imprese?.findIndex(imp => imp.piva === pivaImpresaLegata);
+
+             if (impresaLegataIndex !== undefined && impresaLegataIndex >= 0) {
+                 statoImpresaLegata = statoLegamiSocietari[cfSoggettoPadre].imprese[impresaLegataIndex];
+             } else {
+                 console.error(`Stato non trovato per impresa legata ${pivaImpresaLegata} sotto soggetto ${cfSoggettoPadre}`);
+                 return; // Non aprire il modal se lo stato base non c'è
+             }
+
+             // Assicura che la struttura per i legami indiretti esista
+             if (!statoImpresaLegata.legamiIndiretti) {
+                 statoImpresaLegata.legamiIndiretti = { nessunLegame: true, imprese: [] };
+             }
+             const statoLegamiInd = statoImpresaLegata.legamiIndiretti;
+
+             // Imposta gli identificatori nel modal
+             modalTargetPivaImpresaLegata.value = pivaImpresaLegata;
+             modalTargetCfSoggettoPadre.value = cfSoggettoPadre;
+             // Imposta il titolo
+             modalLegamiIndirettiSocTitle.textContent = `${nomeImpresaLegata || 'Impresa non specificata'} (${pivaImpresaLegata})`;
+             modalLegamiIndirettiSocError.classList.add('hidden'); // Nascondi errori
+
+             // Imposta la checkbox "Nessun Legame"
+             chkNessunLegameIndirettoSoc.checked = statoLegamiInd.nessunLegame;
+             // Mostra/nascondi la tabella in base alla checkbox
+             containerTabellaLegamiIndirettiSoc.classList.toggle('hidden', statoLegamiInd.nessunLegame);
+             // Abilita/disabilita il bottone "Aggiungi"
+             btnAggiungiLegameIndirettoSoc.disabled = statoLegamiInd.nessunLegame;
+
+             // Pulisci e ripopola la tabella dei legami indiretti
+             corpoTabellaLegamiIndirettiSoc.innerHTML = '';
+             if (!statoLegamiInd.nessunLegame && statoLegamiInd.imprese) {
+                 statoLegamiInd.imprese.forEach(legame => {
+                     aggiungiRigaLegameIndirettoSoc(corpoTabellaLegamiIndirettiSoc, legame, cfSoggettoPadre, pivaImpresaLegata);
+                 });
+             }
+             aggiornaVisibilitaTabellaLegamiIndSoc(); // Aggiorna UI tabella
+
+             // Mostra il modal
+             modalLegamiIndirettiSocietariOverlay.style.display = 'block';
+             modalLegamiIndirettiSocietari.style.display = 'block';
+         }
+
+         function chiudiModalLegamiIndirettiSoc() {
+              modalLegamiIndirettiSocietariOverlay.style.display = 'none';
+              modalLegamiIndirettiSocietari.style.display = 'none';
+              modalLegamiIndirettiSocError.classList.add('hidden');
+         }
+
+         function handleSalvaLegamiIndirettiSoc() {
+             const cfSoggettoPadre = modalTargetCfSoggettoPadre.value;
+             const pivaImpresaLegata = modalTargetPivaImpresaLegata.value;
+             const isNessunoChecked = chkNessunLegameIndirettoSoc.checked;
+             const righeLegami = corpoTabellaLegamiIndirettiSoc.querySelectorAll('tr.legame-ind-soc-row');
+
+             let isValid = true;
+             let hasValidLegami = false; // Flag per almeno un legame valido
+
+             // Trova l'indice dell'impresa legata nello stato
+             const impresaLegataIndex = statoLegamiSocietari[cfSoggettoPadre]?.imprese?.findIndex(imp => imp.piva === pivaImpresaLegata);
+             if (impresaLegataIndex === undefined || impresaLegataIndex < 0) {
+                  console.error("Impossibile salvare: stato impresa legata non trovato.");
+                  return; // Non possiamo salvare senza riferimento
+             }
+             // Ottieni riferimento allo stato dei legami indiretti
+             const statoLegamiInd = statoLegamiSocietari[cfSoggettoPadre].imprese[impresaLegataIndex].legamiIndiretti;
+
+
+             if (!isNessunoChecked) {
+                 // Se non checkato, deve esserci almeno un legame
+                 if (righeLegami.length === 0) {
+                     isValid = false;
+                 } else {
+                     // Valida ogni riga legame
+                     righeLegami.forEach(riga => {
+                          const legameValidoRiga = isLegameIndirettoSocValido(riga);
+                          if (legameValidoRiga) {
+                              hasValidLegami = true; // Trovato legame valido
+                              salvaStatoRigaLegameIndirettoSoc(riga, cfSoggettoPadre, pivaImpresaLegata); // Salva dati validi
+                          } else {
+                               isValid = false; // Anche una riga invalida blocca
+                                // Evidenzia errori
+                                riga.querySelectorAll('input[type="text"], input[type="number"]').forEach(input => {
+                                    input.classList.toggle('input-error', input.value.trim() === '');
+                                     // Errore specifico % controllo
+                                     if (input.name === 'percControlloIndSoc' && input.value.trim() !== '') {
+                                           const perc = parseFloat(input.value);
+                                           input.classList.toggle('input-error', isNaN(perc) || perc < 25 || perc > 100);
+                                     }
+                                });
+                          }
+                     });
+                      // Se non c'è nessun legame valido, non è valido
+                      if (!hasValidLegami) isValid = false;
+                 }
+             } else {
+                  // Se checkato, aggiorna lo stato
+                  if (statoLegamiInd) {
+                       statoLegamiInd.nessunLegame = true;
+                       statoLegamiInd.imprese = []; // Svuota array legami
+                  }
+             }
+
+             // Se valido, chiudi modal e aggiorna UI
+             if (isValid) {
+                 chiudiModalLegamiIndirettiSoc();
+                 aggiornaStatoUI(); // Aggiorna UI principale (potrebbe cambiare colore bottone societari)
+             } else {
+                 // Mostra errore
+                 modalLegamiIndirettiSocError.textContent = 'Se non selezioni "Nessun Legame Indiretto", devi inserire almeno un legame con tutti i campi compilati (e % Controllo >= 25).';
+                 modalLegamiIndirettiSocError.classList.remove('hidden');
+             }
+         }
+
+
+        // ============== AGGIORNAMENTO UI GLOBALE ==============
+        // Funzione helper per verificare se tutti i passaggi societari per un dato soggetto sono completi
+        function isLegameSocietarioCompletoPerSoggetto(cfSoggetto) {
+            const statoSoggetto = statoLegamiSocietari[cfSoggetto];
+            // Se non c'è stato per il soggetto, non è completo (non è stato ancora aperto il modal per lui)
+            if (!statoSoggetto) return false;
+            // Se ha dichiarato "Nessun Altro Legame Societario", è completo
+            if (statoSoggetto.nessunLegame) return true;
+
+            // Se non ha dichiarato "Nessun Legame" ma non ha aggiunto imprese, non è completo
+            if (!statoSoggetto.imprese || statoSoggetto.imprese.length === 0) return false;
+
+            // Verifica ogni impresa legata aggiunta per questo soggetto
+            return statoSoggetto.imprese.every(imp => {
+                 // 1. L'impresa legata stessa deve avere tutti i campi compilati
+                 if (!imp.nome?.trim() || !imp.piva?.trim() || !imp.tipoLegame?.trim() || !imp.ateco?.trim()) {
+                      return false; // Impresa legata incompleta
+                 }
+                 // 2. I legami indiretti di QUESTA impresa legata devono essere completi
+                 const statoLegInd = imp.legamiIndiretti;
+                 // Se non c'è lo stato per i legami indiretti (non dovrebbe succedere), non è completo
+                 if (!statoLegInd) return false;
+                 // Se ha dichiarato "Nessun Legame Indiretto Soc" per questa impresa, è completo per questo ramo
+                 if (statoLegInd.nessunLegame) return true;
+                 // Se non ha dichiarato "Nessun Legame" ma non ha aggiunto legami indiretti, non è completo
+                 if (!statoLegInd.imprese || statoLegInd.imprese.length === 0) return false;
+
+                 // 3. Verifica che TUTTI i legami indiretti aggiunti per questa impresa siano validi
+                 return statoLegInd.imprese.every(indImp => {
+                    // Simula una riga DOM per usare la funzione di validazione esistente
+                    const rigaSimulata = {
+                        querySelectorAll: (selector) => {
+                            const elements = [];
+                            if (selector.includes('input[name="nomeImpresaIndSoc"]')) elements.push({ name: 'nomeImpresaIndSoc', value: indImp.nome || '' });
+                            if (selector.includes('input[name="pivaCfImpresaIndSoc"]')) elements.push({ name: 'pivaCfImpresaIndSoc', value: indImp.piva || '' });
+                            if (selector.includes('input[name="percControlloIndSoc"]')) elements.push({ name: 'percControlloIndSoc', value: indImp.ctrl || '' });
+                            if (selector.includes('input[name="atecoImpresaIndSoc"]')) elements.push({ name: 'atecoImpresaIndSoc', value: indImp.ateco || '' });
+                            // Se il selettore è generico per text/number, restituisci tutti
+                            if (selector === 'input[type="text"], input[type="number"]') {
+                                return [
+                                    { name: 'nomeImpresaIndSoc', value: indImp.nome || '' },
+                                    { name: 'pivaCfImpresaIndSoc', value: indImp.piva || '' },
+                                    { name: 'percControlloIndSoc', value: indImp.ctrl || '' },
+                                    { name: 'atecoImpresaIndSoc', value: indImp.ateco || '' }
+                                ];
+                            }
+                            return elements;
+                        }
+                    };
+                    return isLegameIndirettoSocValido(rigaSimulata);
+                 });
+            });
+        }
+
+
+        function aggiornaStatoUI() {
+            // --- Stato Sezione Diretta ---
+            const righeAziendeDirette = corpoTabellaAziende.querySelectorAll('tr.azienda-row');
+            const nessunaAziendaDirettaPresente = righeAziendeDirette.length === 0;
+            const isNessunLegameDirettoChecked = chkNessunLegame.checked;
+            const ultimaRigaDiretta = corpoTabellaAziende.querySelector('tr.azienda-row:last-child');
+            // Il bottone Aggiungi è abilitato se non c'è l'ultima riga o se l'ultima riga è completa
+            const abilitaAggiungiDiretta = !ultimaRigaDiretta || isRigaCompleta(ultimaRigaDiretta);
+            const almenoUnaDirettaCompleta = hasAlmenoUnaRigaCompleta(); // C'è almeno una riga diretta con tutti i campi compilati?
+
+            // --- Controlli UI Sezione Diretta ---
+            // Abilita/Disabilita bottone Aggiungi Impresa
+            btnAggiungiAzienda.disabled = isNessunLegameDirettoChecked || !abilitaAggiungiDiretta;
+            // Abilita/Disabilita input e bottoni nelle righe dirette esistenti
+            righeAziendeDirette.forEach(riga => {
+                 const pivaInput = riga.querySelector('input[name="pivaCf"]');
+                 const btnSoggetti = riga.querySelector('.btnAltriSoggetti');
+                 const btnRimuovi = riga.querySelector('.btnRimuoviRiga');
+                 const inputs = riga.querySelectorAll('input[type="text"]');
+
+                 // Disabilita tutti gli input se "Nessun Legame" è checkato
+                 inputs.forEach(input => input.disabled = isNessunLegameDirettoChecked);
+                 // Disabilita bottone Rimuovi
+                 if(btnRimuovi) btnRimuovi.disabled = isNessunLegameDirettoChecked;
+                 // Disabilita bottone Soggetti se "Nessun Legame" o se la PIVA non è inserita
+                 if(btnSoggetti) btnSoggetti.disabled = isNessunLegameDirettoChecked || !pivaInput || pivaInput.value.trim() === '';
+            });
+            // Abilita/Disabilita bottone Visualizza Riepilogo
+            btnVisualizzaRiepilogo.disabled = isNessunLegameDirettoChecked || nessunaAziendaDirettaPresente;
+
+            // --- Logica Colore Bottone Legami Diretti (1a) ---
+            btnLegamiDiretti.classList.remove('btn-rosso', 'btn-giallo', 'btn-verde');
+            if (isNessunLegameDirettoChecked) {
+                btnLegamiDiretti.classList.add('btn-verde'); // Verde: Completo (nessun legame dichiarato)
+            } else if (almenoUnaDirettaCompleta) {
+                // Controlla se TUTTE le imprese dirette hanno gestito i soggetti
+                const tutteDiretteConSoggettiGestiti = Array.from(righeAziendeDirette)
+                    .filter(isRigaCompleta) // Considera solo le righe complete
+                    .every(riga => {
+                        const piva = riga.querySelector('input[name="pivaCf"]').value;
+                        return statoAltriSoggettiDiretti[piva] !== undefined; // Lo stato esiste (anche se vuoto o con 'nessuno')
+                    });
+                 if (tutteDiretteConSoggettiGestiti) {
+                     btnLegamiDiretti.classList.add('btn-giallo'); // Giallo: Potenzialmente completo (tutte le imprese gestite a livello soggetti)
+                 } else {
+                      btnLegamiDiretti.classList.add('btn-rosso'); // Rosso: Incompleto (almeno un'impresa diretta non ha gestito i soggetti)
+                 }
+
+            } else {
+                btnLegamiDiretti.classList.add('btn-rosso'); // Rosso: Incompleto (nessuna impresa completa o nessuna impresa)
+            }
+
+
+            // --- Visibilità Tabella/Messaggio Sezione Diretta ---
+            if (isNessunLegameDirettoChecked) {
+                 // Se checkato, nascondi tabella e bottone aggiungi
+                 tabellaAziende.classList.add('hidden');
+                 nessunDatoMsg.classList.add('hidden');
+                 btnAggiungiAzienda.classList.add('hidden');
+            } else {
+                 // Altrimenti, mostra bottone aggiungi e tabella/messaggio appropriato
+                 btnAggiungiAzienda.classList.remove('hidden');
+                 tabellaAziende.classList.toggle('hidden', nessunaAziendaDirettaPresente);
+                 nessunDatoMsg.classList.toggle('hidden', !nessunaAziendaDirettaPresente);
+            }
+
+            // --- Controlli UI Sezione Indiretta ---
+            const righeAziendeIndirette = corpoTabellaAziendeIndirette.querySelectorAll('tr.azienda-indiretta-row');
+            const nessunaAziendaIndirettaVisibile = righeAziendeIndirette.length === 0;
+            // La sezione Indiretti è accessibile solo se NON è checkato "Nessun Legame Diretto" E c'è almeno un'impresa diretta completa
+            const abilitaLegamiIndiretti = !isNessunLegameDirettoChecked && almenoUnaDirettaCompleta;
+            btnLegamiIndiretti.disabled = !abilitaLegamiIndiretti;
+
+            // --- Logica Colore Bottone Legami Indiretti (1b) ---
+            btnLegamiIndiretti.classList.remove('btn-rosso', 'btn-giallo', 'btn-verde');
+            if (isNessunLegameDirettoChecked) {
+                btnLegamiIndiretti.classList.add('btn-verde'); // Verde: Completo (perché non applicabile)
+                btnLegamiIndiretti.disabled = true; // Disabilitato se nessun legame diretto
+            } else if (!abilitaLegamiIndiretti) {
+                btnLegamiIndiretti.classList.add('btn-rosso'); // Rosso: Non ancora accessibile
+            } else { // Sezione Indiretti è accessibile
+                // Verifica se per TUTTE le imprese dirette è stato gestito il legame indiretto (o checkato "nessuno" o inseriti dati validi)
+                const tutteIndiretteComplete = Array.from(corpoTabellaAziende.querySelectorAll('tr.azienda-row'))
+                    .filter(isRigaCompleta) // Solo le dirette complete
+                    .every(rigaDiretta => {
+                        const pivaDiretta = rigaDiretta.querySelector('input[name="pivaCf"]').value;
+                        const statoInd = statoLegamiIndiretti[pivaDiretta];
+                        if (!statoInd) return false; // Stato non ancora creato = incompleto
+                        if (statoInd.nessunLegame) return true; // Checkbox "nessuno" = completo
+                        // Se non checkato "nessuno", tutti i campi devono essere compilati
+                        const rigaIndirettaCorrispondente = Array.from(righeAziendeIndirette).find(r => r.querySelector('[data-piva-diretta]')?.dataset.pivaDiretta === pivaDiretta);
+                        if (!rigaIndirettaCorrispondente) return statoInd.nomeInd?.trim() && statoInd.pivaInd?.trim() && statoInd.ctrl?.trim() && statoInd.atecoInd?.trim(); // Controlla stato salvato se riga non visibile
+                        // Controlla input visibili
+                        return rigaIndirettaCorrispondente.querySelector('input[name="nomeAziendaIndiretta"]').value.trim() !== '' &&
+                               rigaIndirettaCorrispondente.querySelector('input[name="pivaCfIndiretta"]').value.trim() !== '' &&
+                               rigaIndirettaCorrispondente.querySelector('input[name="percentualeControllo"]').value.trim() !== '' &&
+                               rigaIndirettaCorrispondente.querySelector('input[name="atecoIndiretta"]').value.trim() !== '';
+                    });
+
+                 // Verifica se TUTTE le imprese indirette (quelle effettivamente inserite) hanno gestito i soggetti
+                 const tutteIndiretteConSoggettiGestiti = Array.from(righeAziendeIndirette)
+                     .filter(riga => !riga.querySelector('input[name="chkNessunLegameIndiretto"]').checked && riga.querySelector('input[name="pivaCfIndiretta"]').value.trim() !== '') // Solo quelle con legame indiretto e PIVA inserita
+                     .every(riga => {
+                         const pivaDiretta = riga.querySelector('[data-piva-diretta]').dataset.pivaDiretta;
+                         return statoLegamiIndiretti[pivaDiretta]?.altriSoggetti !== undefined; // Stato soggetti esiste
+                     });
+
+
+                 if (tutteIndiretteComplete && tutteIndiretteConSoggettiGestiti) {
+                     btnLegamiIndiretti.classList.add('btn-giallo'); // Giallo: Potenzialmente completo
+                 } else {
+                     btnLegamiIndiretti.classList.add('btn-rosso'); // Rosso: Incompleto
+                 }
+            }
+
+             // --- Abilitazione Riepilogo Indiretto ---
+             // Abilitato solo se la sezione è aperta e ci sono righe indirette visibili
+             btnVisualizzaRiepilogoIndiretto.disabled = !isSezioneIndirettaAperta || nessunaAziendaIndirettaVisibile;
+
+             // --- Abilita/Disabilita btnAltriSoggetti nelle righe indirette ---
+             righeAziendeIndirette.forEach(riga => {
+                 const btnSoggetti = riga.querySelector('.btnAltriSoggetti');
+                 const chkNessunLegameInd = riga.querySelector('input[name="chkNessunLegameIndiretto"]');
+                 const pivaIndInput = riga.querySelector('input[name="pivaCfIndiretta"]');
+                 if(btnSoggetti) {
+                      // Disabilitato se checkato "Nessun Legame" o se PIVA indiretta non inserita
+                      btnSoggetti.disabled = chkNessunLegameInd.checked || !pivaIndInput || pivaIndInput.value.trim() === '';
+                 }
+             });
+
+             // --- Logica Abilitazione/Colore Bottone Legami Societari (1c) ---
+             btnLegamiSocietari.classList.remove('btn-rosso', 'btn-giallo', 'btn-verde', 'btn-arancione'); // Pulisci colori precedenti
+
+             if (isNessunLegameDirettoChecked) {
+                 // Se nessun legame diretto, il bottone societari è verde (completo perché non applicabile) e disabilitato
+                 btnLegamiSocietari.classList.add('btn-verde');
+                 btnLegamiSocietari.disabled = true;
+             } else {
+                 // Altrimenti, controlla se esistono soggetti validi identificati nelle fasi precedenti
+                 const soggettiUnici = aggregaSoggettiUnici();
+                 // Il bottone è abilitato solo se ci sono soggetti identificati
+                 const abilitatoSocietari = soggettiUnici.length > 0;
+
+                 if (!abilitatoSocietari) {
+                     // Se non ci sono soggetti, il bottone è verde (completo perché non ci sono soggetti da verificare) e disabilitato
+                     btnLegamiSocietari.classList.add('btn-verde');
+                     btnLegamiSocietari.disabled = true;
+                 } else {
+                     // Se ci sono soggetti, il bottone è abilitato
+                     btnLegamiSocietari.disabled = false;
+                     // Verifica se TUTTI i soggetti identificati hanno completato il loro step societario
+                     const tuttiSoggettiCompleti = soggettiUnici.every(s => isLegameSocietarioCompletoPerSoggetto(s.cf));
+
+                     if (tuttiSoggettiCompleti) {
+                          btnLegamiSocietari.classList.add('btn-giallo'); // Giallo: Potenzialmente completo (TUTTI i soggetti hanno completato i loro passaggi)
+                     } else {
+                          btnLegamiSocietari.classList.add('btn-arancione'); // Arancione: Incompleto (almeno un soggetto deve ancora completare i suoi passaggi)
+                     }
+                 }
+             }
+        }
+
+
+        // ============== GESTIONE RIGHE (DIRETTE & INDIRETTE) ==============
+        // ... (aggiungiRiga e popolaTabellaIndiretta come prima) ...
+         function aggiungiRiga() {
+            const nuovaRiga = rigaAziendaTemplate.content.cloneNode(true); // Clona template
+            const rigaElement = nuovaRiga.querySelector('tr');
+            const pivaInputDiretto = rigaElement.querySelector('input[name="pivaCf"]');
+
+            // Aggiungi listener agli input della nuova riga
+            rigaElement.querySelectorAll('input[type="text"]').forEach(input => {
+                input.addEventListener('input', () => {
+                    input.classList.remove('input-error'); // Rimuovi errore su input
+                    aggiornaStatoUI(); // Aggiorna UI generale (es. abilitazione bottoni)
+                });
+                 input.addEventListener('blur', () => {
+                    input.classList.toggle('input-error', input.value.trim() === ''); // Mostra errore se vuoto
+                    aggiornaStatoUI();
+                });
+            });
+
+            // Aggiungi listener al bottone Rimuovi Riga
+            rigaElement.querySelector('.btnRimuoviRiga').addEventListener('click', () => {
+                const pivaDaRimuovere = pivaInputDiretto.value.trim(); // Ottieni PIVA prima di rimuovere
+                rigaElement.remove(); // Rimuovi riga dal DOM
+
+                // Se c'era una PIVA, rimuovi i dati associati dallo stato
+                if (pivaDaRimuovere) {
+                     // Rimuovi stato legami indiretti
+                     if (statoLegamiIndiretti[pivaDaRimuovere]) {
+                         delete statoLegamiIndiretti[pivaDaRimuovere];
+                         console.log(`Dati indiretti per ${pivaDaRimuovere} rimossi dalla memoria.`);
+                     }
+                     // Rimuovi stato altri soggetti diretti
+                     if (statoAltriSoggettiDiretti[pivaDaRimuovere]) {
+                          delete statoAltriSoggettiDiretti[pivaDaRimuovere];
+                          console.log(`Dati altri soggetti diretti per ${pivaDaRimuovere} rimossi dalla memoria.`);
+                     }
+                     // IMPORTANTE: Potrebbe essere necessario aggiornare/ripulire anche statoLegamiSocietari
+                     // se un soggetto era presente SOLO a causa di questa impresa rimossa.
+                     // Questo richiede una logica più complessa per verificare le fonti di ogni soggetto.
+                     // Per semplicità, qui non viene implementato, ma in un'app reale sarebbe necessario.
+                     // Si potrebbe chiamare popolaTabellaSoggettiElencati() per rigenerare la lista basata sui dati rimanenti.
+                }
+
+                // Se non ci sono più righe dirette complete, chiudi le sezioni dipendenti se aperte
+                if (!hasAlmenoUnaRigaCompleta()) {
+                    if (isSezioneIndirettaAperta) {
+                        isSezioneIndirettaAperta = false;
+                        sezioneLegamiIndiretti.classList.add('hidden');
+                    }
+                    if (isSezioneSocietariAperta) {
+                        isSezioneSocietariAperta = false;
+                        sezioneLegamiSocietari.classList.add('hidden');
+                    }
+                }
+                aggiornaStatoUI(); // Aggiorna UI generale
+            });
+
+            corpoTabellaAziende.appendChild(rigaElement); // Aggiungi riga al DOM
+            aggiornaStatoUI(); // Aggiorna UI generale
+        }
+
+        function popolaTabellaIndiretta() {
+             corpoTabellaAziendeIndirette.innerHTML = ''; // Pulisci tabella indiretta
+             // Ottieni solo le righe dirette che sono complete
+            const righeDiretteComplete = Array.from(corpoTabellaAziende.querySelectorAll('tr.azienda-row')).filter(isRigaCompleta);
+
+            // Se ci sono righe dirette complete, popola la tabella indiretta
+            if (righeDiretteComplete.length > 0) {
+                tabellaAziendeIndirette.classList.remove('hidden'); // Mostra tabella
+                nessunDatoIndirettoMsg.classList.add('hidden'); // Nascondi messaggio "nessun dato"
+
+                // Per ogni riga diretta completa, crea una riga nella tabella indiretta
+                righeDiretteComplete.forEach(rigaDiretta => {
+                    const nomeDiretta = rigaDiretta.querySelector('input[name="nomeAzienda"]').value;
+                    const pivaDiretta = rigaDiretta.querySelector('input[name="pivaCf"]').value;
+
+                    // Recupera o inizializza lo stato per questa impresa diretta
+                    if (!statoLegamiIndiretti[pivaDiretta]) {
+                         statoLegamiIndiretti[pivaDiretta] = {
+                              nessunLegame: false, // Default: c'è legame da inserire
+                              nomeInd: '', pivaInd: '', ctrl: '', atecoInd: '',
+                              altriSoggetti: { nessunSoggetto: true, soggetti: [] } // Inizializza anche stato soggetti
+                         };
+                    }
+                     // Assicura che la struttura altriSoggetti esista sempre
+                     if (!statoLegamiIndiretti[pivaDiretta].altriSoggetti) {
+                          statoLegamiIndiretti[pivaDiretta].altriSoggetti = { nessunSoggetto: true, soggetti: [] };
+                     }
+
+                    const statoSalvato = statoLegamiIndiretti[pivaDiretta]; // Riferimento allo stato
+                    const nuovaRigaIndiretta = rigaAziendaIndirettaTemplate.content.cloneNode(true); // Clona template
+                    const rigaElement = nuovaRigaIndiretta.querySelector('tr');
+                    // Imposta la PIVA diretta nel dataset per riferimento futuro
+                    const pivaInputDirettoReadOnly = rigaElement.querySelector('input[name="pivaCfDiretta"]');
+                    pivaInputDirettoReadOnly.dataset.pivaDiretta = pivaDiretta;
+
+                    // Popola i campi readonly con i dati dell'impresa diretta
+                    rigaElement.querySelector('input[name="nomeAziendaDiretta"]').value = nomeDiretta;
+                    pivaInputDirettoReadOnly.value = pivaDiretta;
+
+                    // Riferimenti alla checkbox e agli input per i dati indiretti
+                    const checkbox = rigaElement.querySelector('input[name="chkNessunLegameIndiretto"]');
+                    const inputsIndiretti = {
+                        nomeInd: rigaElement.querySelector('input[name="nomeAziendaIndiretta"]'),
+                        pivaInd: rigaElement.querySelector('input[name="pivaCfIndiretta"]'),
+                        ctrl: rigaElement.querySelector('input[name="percentualeControllo"]'),
+                        atecoInd: rigaElement.querySelector('input[name="atecoIndiretta"]')
+                    };
+                     const btnAltriSoggettiInd = rigaElement.querySelector('.btnAltriSoggetti');
+
+                    // Imposta lo stato della checkbox e i valori degli input basati sullo stato salvato
+                    checkbox.checked = statoSalvato.nessunLegame;
+                    inputsIndiretti.nomeInd.value = statoSalvato.nomeInd || '';
+                    inputsIndiretti.pivaInd.value = statoSalvato.pivaInd || '';
+                    inputsIndiretti.ctrl.value = statoSalvato.ctrl || '';
+                    inputsIndiretti.atecoInd.value = statoSalvato.atecoInd || '';
+
+                    // Disabilita gli input se la checkbox "Nessun Legame" è selezionata
+                    Object.values(inputsIndiretti).forEach(input => {
+                        input.disabled = statoSalvato.nessunLegame;
+                    });
+                     // Disabilita bottone Soggetti se checkato "Nessuno" o PIVA indiretta non inserita
+                     if(btnAltriSoggettiInd) btnAltriSoggettiInd.disabled = statoSalvato.nessunLegame || !statoSalvato.pivaInd?.trim();
+
+
+                    // Listener per la checkbox "Nessun Legame Indiretto"
+                    checkbox.addEventListener('change', () => {
+                        const isChecked = checkbox.checked;
+                        const chiavePiva = pivaInputDirettoReadOnly.dataset.pivaDiretta; // Recupera PIVA diretta associata
+                        // Aggiorna lo stato 'nessunLegame'
+                        if (!statoLegamiIndiretti[chiavePiva]) statoLegamiIndiretti[chiavePiva] = {}; // Crea stato se non esiste
+                        statoLegamiIndiretti[chiavePiva].nessunLegame = isChecked;
+
+                        // Abilita/Disabilita gli input e puliscili se checkato
+                        Object.values(inputsIndiretti).forEach(input => {
+                            input.disabled = isChecked;
+                            input.classList.remove('input-error'); // Rimuovi errori
+                            if (isChecked) {
+                                input.value = ''; // Pulisci valore
+                                // Pulisci anche nello stato
+                                let statoKey = input.name.replace('Indiretta', 'Ind').replace('Azienda','').toLowerCase();
+                                if(input.name === 'percentualeControllo') statoKey = 'ctrl';
+                                if(input.name === 'nomeAziendaIndiretta') statoKey = 'nomeInd';
+                                if(input.name === 'pivaCfIndiretta') statoKey = 'pivaInd';
+                                if(input.name === 'atecoIndiretta') statoKey = 'atecoInd';
+                                statoLegamiIndiretti[chiavePiva][statoKey] = '';
+                            }
+                        });
+                         // Aggiorna stato bottone Soggetti
+                         if(btnAltriSoggettiInd) btnAltriSoggettiInd.disabled = isChecked || !inputsIndiretti.pivaInd.value.trim();
+                         // Se checkato, resetta anche lo stato degli altri soggetti per questa impresa indiretta
+                         if (isChecked && statoLegamiIndiretti[chiavePiva].altriSoggetti) {
+                              statoLegamiIndiretti[chiavePiva].altriSoggetti = { nessunSoggetto: true, soggetti: [] };
+                         }
+
+                        aggiornaStatoUI(); // Aggiorna UI generale
+                    });
+
+                    // Listener per gli input dei dati indiretti
+                    Object.entries(inputsIndiretti).forEach(([key, input]) => {
+                         input.addEventListener('input', () => {
+                             const chiavePiva = pivaInputDirettoReadOnly.dataset.pivaDiretta; // Recupera PIVA diretta
+                             input.classList.remove('input-error'); // Rimuovi errore
+                             // Aggiorna il valore corrispondente nello stato
+                             if (!statoLegamiIndiretti[chiavePiva]) statoLegamiIndiretti[chiavePiva] = {};
+                             statoLegamiIndiretti[chiavePiva][key] = input.value;
+
+                             // Se cambia la PIVA indiretta, aggiorna abilitazione bottone Soggetti
+                             if (key === 'pivaInd' && btnAltriSoggettiInd) {
+                                  btnAltriSoggettiInd.disabled = checkbox.checked || input.value.trim() === '';
+                                  // Se la PIVA indiretta viene cancellata, resetta i suoi soggetti
+                                  if(input.value.trim() === '' && statoLegamiIndiretti[chiavePiva].altriSoggetti) {
+                                      statoLegamiIndiretti[chiavePiva].altriSoggetti = { nessunSoggetto: true, soggetti: [] };
+                                  }
+                             }
+                             aggiornaStatoUI(); // Aggiorna UI generale
+                         });
+                         // Listener su blur per mostrare errore se campo vuoto (e non checkato "nessuno")
+                         input.addEventListener('blur', () => {
+                            input.classList.toggle('input-error', !checkbox.checked && input.value.trim() === '');
+                             aggiornaStatoUI();
+                        });
+                    });
+
+                    corpoTabellaAziendeIndirette.appendChild(rigaElement); // Aggiungi riga al DOM
+                });
+            } else {
+                // Se non ci sono righe dirette complete, nascondi tabella e mostra messaggio
+                tabellaAziendeIndirette.classList.add('hidden');
+                nessunDatoIndirettoMsg.classList.remove('hidden');
+            }
+            aggiornaStatoUI(); // Aggiorna UI generale
+        }
+
+
+        // ============== GESTIONE POPUP ==============
+        // ... (mostraPopupRiepilogo, nascondiPopup, mostraPopupRiepilogoIndiretto, nascondiPopupIndiretto come prima) ...
+        function mostraPopupRiepilogo() {
+             const righe = corpoTabellaAziende.querySelectorAll('tr.azienda-row');
+            let htmlRiepilogo = '<p class="text-gray-600 mb-4">Nessuna impresa inserita.</p>'; // Default
+
+            // Se ci sono righe e "Nessun Legame" non è checkato
+            if (righe.length > 0 && !chkNessunLegame.checked) {
+                 // Costruisci l'intestazione della tabella HTML
+                 let tabellaHtml = `<table class="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-3 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">Nome Impresa</th>
+                                            <th class="px-3 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">P.I./C.F.</th>
+                                            <th class="px-3 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">Ruolo</th>
+                                            <th class="px-3 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">ATECO</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">`;
+                let datiPresenti = false; // Flag per sapere se almeno una riga è completa
+
+                // Itera su ogni riga diretta
+                righe.forEach(riga => {
+                    // Considera solo le righe complete
+                    if (isRigaCompleta(riga)) {
+                        datiPresenti = true; // Trovata riga completa
+                        // Estrai i dati dalla riga
+                        const nome = riga.querySelector('input[name="nomeAzienda"]').value;
+                        const piva = riga.querySelector('input[name="pivaCf"]').value;
+                        const ruolo = riga.querySelector('input[name="ruolo"]').value;
+                        const ateco = riga.querySelector('input[name="ateco"]').value;
+                        // Aggiungi la riga HTML alla tabella del riepilogo
+                        tabellaHtml += `<tr>
+                                          <td class="px-3 py-1 whitespace-nowrap">${nome}</td>
+                                          <td class="px-3 py-1 whitespace-nowrap">${piva}</td>
+                                          <td class="px-3 py-1 whitespace-nowrap">${ruolo}</td>
+                                          <td class="px-3 py-1 whitespace-normal break-words">${ateco}</td>
+                                        </tr>`;
+                    }
+                });
+                tabellaHtml += `</tbody></table>`; // Chiudi tabella HTML
+
+                // Se sono stati trovati dati, usa la tabella HTML, altrimenti un messaggio
+                if (datiPresenti) {
+                    htmlRiepilogo = tabellaHtml;
+                } else {
+                    htmlRiepilogo = '<p class="text-gray-600 mb-4">Nessuna impresa con dati completi inserita.</p>';
+                }
+
+            // Se è checkato "Nessun Legame Diretto"
+            } else if (chkNessunLegame.checked) {
+                 htmlRiepilogo = '<p class="text-gray-600 mb-4">È stato dichiarato NESSUN LEGAME DIRETTO.</p>';
+            }
+
+            // Inserisci l'HTML generato nel popup e mostralo
+            contenutoPopup.innerHTML = htmlRiepilogo;
+            popupOverlay.style.display = 'block';
+            popupRiepilogo.style.display = 'block';
+        }
+        function nascondiPopup() {
+            popupOverlay.style.display = 'none';
+            popupRiepilogo.style.display = 'none';
+            contenutoPopup.innerHTML = ''; // Pulisci contenuto
+        }
+         function mostraPopupRiepilogoIndiretto() {
+            // Default: nessun dato valido
+            let htmlRiepilogo = '<p class="text-gray-600 mb-4">Nessun dato indiretto valido inserito o per tutte le voci è stato indicato "Nessun Legame Indiretto".</p>';
+            // Intestazione tabella HTML
+            let tabellaHtml = `<table class="min-w-full divide-y divide-gray-200 text-xs"> <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-1 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">Impresa Controllata Direttamente</th>
+                                        <th class="px-1 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">Legame Ind.</th>
+                                        <th class="px-1 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">Nome Impresa Controllata</th>
+                                        <th class="px-1 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">P.I./C.F. Controllata</th>
+                                        <th class="px-1 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">% Controllo</th> <th class="px-1 py-1 text-left font-medium text-gray-500 uppercase tracking-wider">ATECO Controllata</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">`;
+            let datiValidiPresenti = false; // Flag per dati validi
+
+             // Itera sulle righe dirette complete
+             Array.from(corpoTabellaAziende.querySelectorAll('tr.azienda-row'))
+                 .filter(isRigaCompleta)
+                 .forEach(rigaDiretta => {
+                     const nomeDiretta = rigaDiretta.querySelector('input[name="nomeAzienda"]').value;
+                     const pivaDiretta = rigaDiretta.querySelector('input[name="pivaCf"]').value;
+                     const statoSalvato = statoLegamiIndiretti[pivaDiretta]; // Recupera stato indiretto
+
+                     // Se esiste uno stato per questa impresa diretta
+                     if (statoSalvato) {
+                          datiValidiPresenti = true; // Trovato almeno uno stato
+                         // Se è stato dichiarato "Nessun Legame"
+                         if (statoSalvato.nessunLegame) {
+                             tabellaHtml += `<tr>
+                                               <td class="px-1 py-1 whitespace-normal break-words">${nomeDiretta}<br><span class="text-gray-500 text-xs">${pivaDiretta}</span></td>
+                                               <td class="px-1 py-1 whitespace-nowrap italic text-gray-500">Nessuno</td>
+                                               <td class="px-1 py-1 text-center text-gray-400" colspan="4">-</td>
+                                             </tr>`;
+                         // Se NON è stato dichiarato "Nessun Legame" E tutti i campi sono compilati
+                         } else if (statoSalvato.nomeInd?.trim() && statoSalvato.pivaInd?.trim() && statoSalvato.ctrl?.trim() && statoSalvato.atecoInd?.trim()) {
+                             tabellaHtml += `<tr>
+                                               <td class="px-1 py-1 whitespace-normal break-words">${nomeDiretta}<br><span class="text-gray-500 text-xs">${pivaDiretta}</span></td>
+                                               <td class="px-1 py-1 whitespace-nowrap text-green-600 font-semibold">Sì</td>
+                                               <td class="px-1 py-1 whitespace-normal break-words">${statoSalvato.nomeInd}</td>
+                                               <td class="px-1 py-1 whitespace-nowrap">${statoSalvato.pivaInd}</td>
+                                               <td class="px-1 py-1 whitespace-nowrap">${statoSalvato.ctrl}</td> <td class="px-1 py-1 whitespace-normal break-words">${statoSalvato.atecoInd}</td>
+                                             </tr>`;
+                         } else {
+                             // Caso: non checkato "nessuno" ma dati incompleti (mostra come incompleto)
+                              tabellaHtml += `<tr>
+                                               <td class="px-1 py-1 whitespace-normal break-words">${nomeDiretta}<br><span class="text-gray-500 text-xs">${pivaDiretta}</span></td>
+                                               <td class="px-1 py-1 whitespace-nowrap text-red-600 font-semibold">Incompleto</td>
+                                               <td class="px-1 py-1 text-center text-gray-400" colspan="4">-</td>
+                                             </tr>`;
+                         }
+                     }
+                 });
+
+            tabellaHtml += `</tbody></table>`; // Chiudi tabella HTML
+            // Se sono stati trovati dati validi (o "nessuno"), usa la tabella, altrimenti il messaggio default
+            if (datiValidiPresenti) htmlRiepilogo = tabellaHtml;
+
+            // Inserisci HTML nel popup e mostralo
+            contenutoPopupIndiretto.innerHTML = htmlRiepilogo;
+            popupOverlayIndiretto.style.display = 'block';
+            popupRiepilogoIndiretto.style.display = 'block';
+        }
+         function nascondiPopupIndiretto() {
+            popupOverlayIndiretto.style.display = 'none';
+            popupRiepilogoIndiretto.style.display = 'none';
+            contenutoPopupIndiretto.innerHTML = ''; // Pulisci contenuto
+        }
+
+
+        // ============== EVENT LISTENERS ==============
+         // --- Listeners Sezione Diretta ---
+        // Pulsante Apri/Chiudi Sezione Legami Diretti
+        btnLegamiDiretti.addEventListener('click', () => {
+            isSezioneDirettaAperta = !isSezioneDirettaAperta; // Inverti stato apertura
+            sezioneLegamiDiretti.classList.toggle('hidden', !isSezioneDirettaAperta); // Mostra/nascondi sezione
+
+            // Se apre la sezione, non ci sono righe e non è checkato "nessuno", aggiungi la prima riga
+            if (isSezioneDirettaAperta && corpoTabellaAziende.rows.length === 0 && !chkNessunLegame.checked) {
+                aggiungiRiga();
+            }
+            // Se chiude la sezione diretta, chiudi anche le sezioni dipendenti se aperte
+            if (!isSezioneDirettaAperta) {
+                if (isSezioneIndirettaAperta) {
+                     isSezioneIndirettaAperta = false;
+                     sezioneLegamiIndiretti.classList.add('hidden');
+                }
+                if (isSezioneSocietariAperta) {
+                     isSezioneSocietariAperta = false;
+                     sezioneLegamiSocietari.classList.add('hidden');
+                }
+            }
+            aggiornaStatoUI(); // Aggiorna UI generale
+        });
+        // Checkbox Nessun Legame Diretto
+        chkNessunLegame.addEventListener('change', () => {
+             // Se viene checkato, chiudi le sezioni dipendenti se aperte
+             if (chkNessunLegame.checked) {
+                 if (isSezioneIndirettaAperta) {
+                     isSezioneIndirettaAperta = false;
+                     sezioneLegamiIndiretti.classList.add('hidden');
+                 }
+                  if (isSezioneSocietariAperta) {
+                     isSezioneSocietariAperta = false;
+                     sezioneLegamiSocietari.classList.add('hidden');
+                 }
+             }
+            aggiornaStatoUI(); // Aggiorna UI generale
+        });
+        // Pulsante Aggiungi Azienda Diretta
+        btnAggiungiAzienda.addEventListener('click', () => {
+            const ultimaRiga = corpoTabellaAziende.querySelector('tr.azienda-row:last-child');
+            // Aggiungi solo se non c'è un'ultima riga o se l'ultima riga è completa
+            if (!ultimaRiga || isRigaCompleta(ultimaRiga)) {
+                 aggiungiRiga();
+            } else {
+                // Se l'ultima riga non è completa, evidenzia gli errori
+                ultimaRiga.querySelectorAll('input[type="text"]').forEach(input => {
+                    input.classList.toggle('input-error', input.value.trim() === '');
+                });
+                console.warn("Completa l'ultima riga impresa diretta prima di aggiungerne un'altra.");
+                // Potresti mostrare un messaggio all'utente qui invece del console.warn
+            }
+        });
+         // Pulsante Conferma e Chiudi Sezione Diretta
+        btnConfermaChiudi.addEventListener('click', () => {
+            isSezioneDirettaAperta = false; // Imposta stato chiuso
+            sezioneLegamiDiretti.classList.add('hidden'); // Nascondi sezione
+            aggiornaStatoUI(); // Aggiorna UI (es. colore bottone)
+        });
+        // Pulsanti Popup Riepilogo Diretto
+        btnVisualizzaRiepilogo.addEventListener('click', mostraPopupRiepilogo);
+        btnClosePopup.addEventListener('click', nascondiPopup);
+        popupOverlay.addEventListener('click', nascondiPopup); // Chiudi cliccando sull'overlay
+
+
+        // --- Listeners Sezione Indiretta ---
+        // Pulsante Apri/Chiudi Sezione Legami Indiretti
+        btnLegamiIndiretti.addEventListener('click', () => {
+            if (btnLegamiIndiretti.disabled) return; // Non fare nulla se disabilitato
+            isSezioneIndirettaAperta = !isSezioneIndirettaAperta; // Inverti stato
+            sezioneLegamiIndiretti.classList.toggle('hidden', !isSezioneIndirettaAperta); // Mostra/nascondi
+
+            // Se apre la sezione, popola la tabella indiretta con i dati correnti
+            if (isSezioneIndirettaAperta) {
+                popolaTabellaIndiretta();
+            }
+             // Se apre la sezione indiretta, chiudi la sezione societari se aperta
+             if (isSezioneIndirettaAperta && isSezioneSocietariAperta) {
+                 isSezioneSocietariAperta = false;
+                 sezioneLegamiSocietari.classList.add('hidden');
+             }
+            aggiornaStatoUI(); // Aggiorna UI generale
+        });
+
+        // Pulsante Conferma e Chiudi Sezione Indiretta
+        btnConfermaChiudiIndiretto.addEventListener('click', () => {
+            isSezioneIndirettaAperta = false; // Imposta stato chiuso
+            sezioneLegamiIndiretti.classList.add('hidden'); // Nascondi sezione
+            aggiornaStatoUI(); // Aggiorna UI (es. colore bottone)
+        });
+
+        // Pulsanti Popup Riepilogo Indiretto
+        btnVisualizzaRiepilogoIndiretto.addEventListener('click', mostraPopupRiepilogoIndiretto);
+        btnClosePopupIndiretto.addEventListener('click', nascondiPopupIndiretto);
+        popupOverlayIndiretto.addEventListener('click', nascondiPopupIndiretto); // Chiudi su click overlay
+
+
+        // --- Listener Delegato per bottoni dinamici (Soggetti, Imprese Controllate, Legame Indiretto Soc) ---
+        // Usa un unico listener sul body per gestire i click su bottoni che vengono aggiunti/rimossi dinamicamente
+        document.body.addEventListener('click', function(event) {
+            // Cerca il bottone più vicino all'elemento cliccato che corrisponde ai selettori
+            const btnAltriSoggetti = event.target.closest('.btnAltriSoggetti');
+            const btnImpreseControllate = event.target.closest('.btnImpreseControllate');
+            const btnLegameIndirettoSoc = event.target.closest('.btnLegameIndirettoSocietario');
+
+            // --- Gestione Click su Bottone "Altri Soggetti" ---
+            if (btnAltriSoggetti) {
+                if (btnAltriSoggetti.disabled) return; // Ignora se disabilitato
+                const riga = btnAltriSoggetti.closest('tr'); // Trova la riga genitore
+                let pivaImpresa, nomeImpresa, isDiretto, pivaDirettaAssociata = null;
+
+                // Determina se è una riga diretta o indiretta e prendi i dati necessari
+                if (riga.classList.contains('azienda-row')) { // Riga Diretta
+                    pivaImpresa = riga.querySelector('input[name="pivaCf"]')?.value.trim();
+                    nomeImpresa = riga.querySelector('input[name="nomeAzienda"]')?.value.trim();
+                    isDiretto = true;
+                    modalTargetPivaDirettaAssociata.value = ''; // Non serve PIVA diretta associata
+                } else if (riga.classList.contains('azienda-indiretta-row')) { // Riga Indiretta
+                    pivaImpresa = riga.querySelector('input[name="pivaCfIndiretta"]')?.value.trim();
+                    nomeImpresa = riga.querySelector('input[name="nomeAziendaIndiretta"]')?.value.trim();
+                    isDiretto = false;
+                    // Recupera la PIVA diretta associata dal dataset dell'input readonly
+                    pivaDirettaAssociata = riga.querySelector('input[name="pivaCfDiretta"]')?.dataset.pivaDiretta;
+                     if (!pivaDirettaAssociata) { console.error("PIVA diretta associata mancante per legame indiretto."); return; }
+                     modalTargetPivaDirettaAssociata.value = pivaDirettaAssociata; // Salva nel modal
+                } else { return; } // Non è una riga gestita
+
+                // Controlla se la PIVA/CF dell'impresa target è stata inserita
+                if (!pivaImpresa) {
+                    // Potresti usare un alert o un messaggio più integrato nell'UI
+                    alert("Errore: Inserire prima il P.IVA/C.F. dell'impresa per gestire i soggetti collegati.");
+                    return;
+                }
+                // Apri il modal passando i dati necessari
+                apriModalAltriSoggetti(pivaImpresa, nomeImpresa || 'Impresa non specificata', isDiretto);
+            }
+            // --- Gestione Click su Bottone "Imprese Controllate" (nella sezione Societari) ---
+            else if (btnImpreseControllate) {
+                 const rigaSoggetto = btnImpreseControllate.closest('tr'); // Trova riga soggetto
+                 // Estrai CF e nome/cognome dalle celle della tabella
+                 const cfSoggetto = rigaSoggetto.querySelector('[data-label="CF"]')?.textContent;
+                 const nomeSoggetto = rigaSoggetto.querySelector('[data-label="Nome"]')?.textContent;
+                 const cognomeSoggetto = rigaSoggetto.querySelector('[data-label="Cognome"]')?.textContent;
+                 if (!cfSoggetto) { console.error("CF del soggetto non trovato nella riga."); return; }
+                 // Apri il modal per le imprese controllate da questo soggetto
+                 apriModalImpreseControllate(cfSoggetto, `${nomeSoggetto} ${cognomeSoggetto}`);
+            }
+            // --- Gestione Click su Bottone "Indiretto" (nel modal Imprese Controllate) ---
+            else if (btnLegameIndirettoSoc) {
+                 if (btnLegameIndirettoSoc.disabled) return; // Ignora se disabilitato
+                 const rigaImpresaLegata = btnLegameIndirettoSoc.closest('tr'); // Trova riga impresa legata
+                 // Estrai PIVA/CF e nome dell'impresa legata dagli input
+                 const pivaImpresaLegata = rigaImpresaLegata.querySelector('input[name="pivaCfImpresaLegata"]')?.value.trim();
+                 const nomeImpresaLegata = rigaImpresaLegata.querySelector('input[name="nomeImpresaLegata"]')?.value.trim();
+                 // Recupera il CF del soggetto padre dall'input nascosto del modal corrente
+                 const cfSoggettoPadre = modalTargetCfSoggetto.value;
+
+                 // Controlla che i dati necessari siano presenti
+                 if (!pivaImpresaLegata || !cfSoggettoPadre) {
+                      console.error("Dati mancanti (PIVA impresa legata o CF soggetto padre) per aprire modal legami indiretti societari.");
+                      // Potresti mostrare un alert o un messaggio
+                      if (!pivaImpresaLegata) alert("Inserire la P.IVA/C.F. dell'impresa legata prima di gestire i legami indiretti.");
+                      return;
+                 }
+                 // Apri il modal per i legami indiretti di questa impresa legata
+                 apriModalLegamiIndirettiSoc(cfSoggettoPadre, pivaImpresaLegata, nomeImpresaLegata);
+            }
+        });
+
+
+        // --- Listeners Modal Altri Soggetti ---
+        // Checkbox "Nessun Altro Soggetto"
+        chkNessunAltroSoggetto.addEventListener('change', () => {
+            const isChecked = chkNessunAltroSoggetto.checked;
+            const pivaImpresa = modalTargetPiva.value; // PIVA dell'impresa a cui si riferisce il modal
+            const isDiretto = modalTargetIsDiretto.value === 'true'; // È impresa diretta o indiretta?
+            let statoSoggettiObj = null; // Oggetto stato da aggiornare
+
+             // Trova l'oggetto stato corretto
+             if (isDiretto) {
+                 if (!statoAltriSoggettiDiretti[pivaImpresa]) statoAltriSoggettiDiretti[pivaImpresa] = { nessunSoggetto: true, soggetti: [] };
+                 statoSoggettiObj = statoAltriSoggettiDiretti[pivaImpresa];
+             } else {
+                 const pivaDirettaAssociata = modalTargetPivaDirettaAssociata.value;
+                  if (statoLegamiIndiretti[pivaDirettaAssociata]?.altriSoggetti) {
+                       statoSoggettiObj = statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti;
+                  }
+             }
+
+            // Aggiorna lo stato in base alla checkbox
+            if (statoSoggettiObj) {
+                statoSoggettiObj.nessunSoggetto = isChecked;
+                // Se checkato, svuota l'array dei soggetti nello stato e pulisci la tabella nel DOM
+                if (isChecked) {
+                    statoSoggettiObj.soggetti = [];
+                    corpoTabellaAltriSoggetti.innerHTML = '';
+                }
+            }
+
+            // Aggiorna l'UI del modal
+            containerTabellaSoggetti.classList.toggle('hidden', isChecked); // Mostra/nascondi tabella
+            btnAggiungiSoggetto.disabled = isChecked; // Abilita/disabilita bottone aggiungi
+            aggiornaVisibilitaTabellaSoggetti(); // Mostra/nascondi messaggio "nessun soggetto"
+            modalAltriSoggettiError.classList.add('hidden'); // Nascondi errore
+        });
+
+        // Bottone "Aggiungi Soggetto"
+        btnAggiungiSoggetto.addEventListener('click', () => {
+             const pivaImpresa = modalTargetPiva.value;
+             const isDiretto = modalTargetIsDiretto.value === 'true';
+             let statoSoggettiObj = null;
+
+             // Trova stato corretto
+             if (isDiretto) {
+                 if (!statoAltriSoggettiDiretti[pivaImpresa]) statoAltriSoggettiDiretti[pivaImpresa] = { nessunSoggetto: false, soggetti: [] };
+                 statoSoggettiObj = statoAltriSoggettiDiretti[pivaImpresa];
+             } else {
+                 const pivaDirettaAssociata = modalTargetPivaDirettaAssociata.value;
+                 if (statoLegamiIndiretti[pivaDirettaAssociata]?.altriSoggetti) {
+                     statoSoggettiObj = statoLegamiIndiretti[pivaDirettaAssociata].altriSoggetti;
+                 }
+             }
+
+             // Aggiungi riga vuota al DOM
+             aggiungiRigaSoggetto(corpoTabellaAltriSoggetti, null, pivaImpresa, isDiretto);
+
+             // Aggiungi oggetto vuoto allo stato e aggiorna UI modal
+             if (statoSoggettiObj) {
+                 if (!statoSoggettiObj.soggetti) statoSoggettiObj.soggetti = [];
+                 statoSoggettiObj.soggetti.push({ nome: '', cognome: '', cf: '', ruolo: '' }); // Aggiungi placeholder nello stato
+                 statoSoggettiObj.nessunSoggetto = false; // Assicura che "nessuno" sia falso
+                 chkNessunAltroSoggetto.checked = false; // Deseleziona checkbox
+                 containerTabellaSoggetti.classList.remove('hidden'); // Mostra tabella
+                 btnAggiungiSoggetto.disabled = false; // Abilita bottone aggiungi
+             }
+             modalAltriSoggettiError.classList.add('hidden'); // Nascondi errore
+        });
+
+        // Bottone "Conferma e Chiudi" del modal soggetti
+        btnConfermaChiudiSoggetti.addEventListener('click', handleSalvaSoggetti);
+        // Bottone chiusura (X) e overlay del modal soggetti
+        btnCloseModalSoggetti.addEventListener('click', chiudiModalAltriSoggetti);
+        modalAltriSoggettiOverlay.addEventListener('click', chiudiModalAltriSoggetti);
+
+         // --- NUOVO: Listeners Sezione Societari ---
+         // Pulsante Apri/Chiudi Sezione Legami Societari
+         btnLegamiSocietari.addEventListener('click', () => {
+             if (btnLegamiSocietari.disabled) return; // Ignora se disabilitato
+             isSezioneSocietariAperta = !isSezioneSocietariAperta; // Inverti stato
+             sezioneLegamiSocietari.classList.toggle('hidden', !isSezioneSocietariAperta); // Mostra/nascondi
+
+             // Se apre la sezione, popola la tabella dei soggetti identificati
+             if (isSezioneSocietariAperta) {
+                  popolaTabellaSoggettiElencati();
+             }
+             // Se apre la sezione societari, chiudi le altre sezioni se aperte
+             if(isSezioneSocietariAperta) {
+                 if(isSezioneDirettaAperta) {
+                      isSezioneDirettaAperta = false;
+                      sezioneLegamiDiretti.classList.add('hidden');
+                 }
+                  if(isSezioneIndirettaAperta) {
+                      isSezioneIndirettaAperta = false;
+                      sezioneLegamiIndiretti.classList.add('hidden');
+                 }
+             }
+             aggiornaStatoUI(); // Aggiorna UI generale
+         });
+
+         // Bottone Conferma e Chiudi Sezione Societari
+         btnConfermaChiudiSocietari.addEventListener('click', () => {
+              isSezioneSocietariAperta = false; // Imposta stato chiuso
+              sezioneLegamiSocietari.classList.add('hidden'); // Nascondi sezione
+              aggiornaStatoUI(); // Aggiorna UI (es. colore bottone)
+         });
+
+         // --- NUOVO: Listeners Modal Imprese Controllate ---
+         // Checkbox "Nessun Altro Legame Societario"
+         chkNessunAltroLegameSocietario.addEventListener('change', () => {
+             const isChecked = chkNessunAltroLegameSocietario.checked;
+             const cfSoggetto = modalTargetCfSoggetto.value; // CF del soggetto a cui si riferisce il modal
+
+             // Assicura che lo stato per il soggetto esista
+             if (!statoLegamiSocietari[cfSoggetto]) statoLegamiSocietari[cfSoggetto] = { nessunLegame: true, imprese: [] };
+
+             // Aggiorna lo stato 'nessunLegame'
+             statoLegamiSocietari[cfSoggetto].nessunLegame = isChecked;
+             // Se checkato, svuota l'array imprese nello stato e pulisci la tabella nel DOM
+             if (isChecked) {
+                 statoLegamiSocietari[cfSoggetto].imprese = [];
+                 corpoTabellaImpreseLegate.innerHTML = '';
+             }
+
+             // Aggiorna UI modal
+             containerTabellaImpreseLegate.classList.toggle('hidden', isChecked); // Mostra/nascondi tabella
+             btnAggiungiImpresaLegata.disabled = isChecked; // Abilita/disabilita bottone aggiungi
+             aggiornaVisibilitaTabellaImpreseLegate(); // Mostra/nascondi messaggio "nessuna impresa"
+             modalImpreseLegateError.classList.add('hidden'); // Nascondi errore
+         });
+
+         // Bottone "Aggiungi Impresa" (nel modal imprese controllate)
+         btnAggiungiImpresaLegata.addEventListener('click', () => {
+              const cfSoggetto = modalTargetCfSoggetto.value;
+              // Assicura che lo stato esista
+              if (!statoLegamiSocietari[cfSoggetto]) statoLegamiSocietari[cfSoggetto] = { nessunLegame: false, imprese: [] };
+
+              // Crea un oggetto impresa vuoto con la struttura per i legami indiretti già pronta
+              const nuovaImpresa = { nome: '', piva: '', tipoLegame: '', ateco: '', legamiIndiretti: { nessunLegame: true, imprese: [] } };
+              // Aggiungi riga al DOM
+              aggiungiRigaImpresaLegata(corpoTabellaImpreseLegate, nuovaImpresa, cfSoggetto);
+
+              // Aggiungi l'oggetto completo allo stato
+              if (!statoLegamiSocietari[cfSoggetto].imprese) statoLegamiSocietari[cfSoggetto].imprese = [];
+              statoLegamiSocietari[cfSoggetto].imprese.push(nuovaImpresa);
+              // Aggiorna UI modal
+              statoLegamiSocietari[cfSoggetto].nessunLegame = false; // Assicura che "nessuno" sia falso
+              chkNessunAltroLegameSocietario.checked = false; // Deseleziona checkbox
+              containerTabellaImpreseLegate.classList.remove('hidden'); // Mostra tabella
+              btnAggiungiImpresaLegata.disabled = false; // Abilita bottone aggiungi
+              modalImpreseLegateError.classList.add('hidden'); // Nascondi errore
+         });
+
+         // Bottone "Conferma e Chiudi" del modal imprese controllate
+         btnConfermaChiudiImpreseLegate.addEventListener('click', handleSalvaImpreseLegate);
+         // Bottone chiusura (X) e overlay del modal imprese controllate
+         btnCloseModalImprese.addEventListener('click', chiudiModalImpreseControllate);
+         modalImpreseControllateOverlay.addEventListener('click', chiudiModalImpreseControllate);
+
+         // --- NUOVO: Listeners Modal Legami Indiretti Societari ---
+         // Checkbox "Nessun Legame Indiretto Soc"
+         chkNessunLegameIndirettoSoc.addEventListener('change', () => {
+             const isChecked = chkNessunLegameIndirettoSoc.checked;
+             const cfSoggettoPadre = modalTargetCfSoggettoPadre.value;
+             const pivaImpresaLegata = modalTargetPivaImpresaLegata.value;
+
+             // Trova l'oggetto stato corretto per i legami indiretti di questa impresa legata
+             const impresaLegataIndex = statoLegamiSocietari[cfSoggettoPadre]?.imprese?.findIndex(imp => imp.piva === pivaImpresaLegata);
+             if (impresaLegataIndex === undefined || impresaLegataIndex < 0) return; // Stato non trovato
+             const statoLegamiInd = statoLegamiSocietari[cfSoggettoPadre].imprese[impresaLegataIndex].legamiIndiretti;
+
+             // Aggiorna lo stato 'nessunLegame'
+             if (statoLegamiInd) {
+                 statoLegamiInd.nessunLegame = isChecked;
+                 // Se checkato, svuota array imprese nello stato e pulisci tabella DOM
+                 if (isChecked) {
+                     statoLegamiInd.imprese = [];
+                     corpoTabellaLegamiIndirettiSoc.innerHTML = '';
+                 }
+             }
+
+             // Aggiorna UI modal
+             containerTabellaLegamiIndirettiSoc.classList.toggle('hidden', isChecked); // Mostra/nascondi tabella
+             btnAggiungiLegameIndirettoSoc.disabled = isChecked; // Abilita/disabilita bottone aggiungi
+             aggiornaVisibilitaTabellaLegamiIndSoc(); // Mostra/nascondi messaggio "nessun legame"
+             modalLegamiIndirettiSocError.classList.add('hidden'); // Nascondi errore
+         });
+
+         // Bottone "Aggiungi Legame Indiretto" (nel modal legami indiretti societari)
+         btnAggiungiLegameIndirettoSoc.addEventListener('click', () => {
+             const cfSoggettoPadre = modalTargetCfSoggettoPadre.value;
+             const pivaImpresaLegata = modalTargetPivaImpresaLegata.value;
+
+             // Trova l'oggetto stato corretto
+             const impresaLegataIndex = statoLegamiSocietari[cfSoggettoPadre]?.imprese?.findIndex(imp => imp.piva === pivaImpresaLegata);
+             if (impresaLegataIndex === undefined || impresaLegataIndex < 0) return; // Stato non trovato
+             const statoLegamiInd = statoLegamiSocietari[cfSoggettoPadre].imprese[impresaLegataIndex].legamiIndiretti;
+
+             // Se lo stato esiste
+             if (statoLegamiInd) {
+                  // Aggiungi riga vuota al DOM
+                  aggiungiRigaLegameIndirettoSoc(corpoTabellaLegamiIndirettiSoc, null, cfSoggettoPadre, pivaImpresaLegata);
+                  // Aggiungi oggetto vuoto allo stato
+                  if (!statoLegamiInd.imprese) statoLegamiInd.imprese = [];
+                  statoLegamiInd.imprese.push({ nome: '', piva: '', ctrl: '', ateco: '' });
+                  // Aggiorna UI modal
+                  statoLegamiInd.nessunLegame = false; // Assicura che "nessuno" sia falso
+                  chkNessunLegameIndirettoSoc.checked = false; // Deseleziona checkbox
+                  containerTabellaLegamiIndirettiSoc.classList.remove('hidden'); // Mostra tabella
+                  btnAggiungiLegameIndirettoSoc.disabled = false; // Abilita bottone aggiungi
+             }
+             modalLegamiIndirettiSocError.classList.add('hidden'); // Nascondi errore
+         });
+
+         // Bottone "Conferma e Chiudi" del modal legami indiretti societari
+         btnConfermaChiudiLegamiIndirettiSoc.addEventListener('click', handleSalvaLegamiIndirettiSoc);
+         // Bottone chiusura (X) e overlay del modal legami indiretti societari
+         btnCloseModalLegamiIndirettiSoc.addEventListener('click', chiudiModalLegamiIndirettiSoc);
+         modalLegamiIndirettiSocietariOverlay.addEventListener('click', chiudiModalLegamiIndirettiSoc);
+
+
+        // ============== INIZIALIZZAZIONE ==============
+        aggiornaStatoUI(); // Imposta lo stato iniziale dell'interfaccia all'avvio
+
+    </script>
+
+</body>
+</html>
